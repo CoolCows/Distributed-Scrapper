@@ -1,20 +1,12 @@
 CHORD_PORT = 8000
-CHORD_IPROC_PORT = 8001
-SCRAP_IPROC_PORT = 8002
 BEACON_PORT = 8010
+CHORD_SCRAP_ADDR = "ipc://./ipc/chord-scrapper"
 
-ASK_JOIN = b'qjoin'
-ASK_PRED = b'qpred'
-ASK_SUCC = b'qsucc'
-ASK_STAB = b'qstab'
+# FLAGS!
+# Stablish initial communications between chord node and scrapper
+REQ_IPC = b"req_ipc"
+REP_IPC = b"rep_ipc"
 
-ANS_JOIN = b'rjoin'
-ANS_PRED = b'rpred'
-ANS_SUCC = b'rsucc'
-ANS_STAB = b'rstab'
-
-ACK = b'ack'
-STOP = b'stop'
-LEAVE = b'leave'
-
-TIMEOUT_STABILIZE = 1000
+# Ask to scrap certain url ...
+REQ_SCRAP = b"req_scrap"
+REP_SCRAP = b"rep_scrap"
