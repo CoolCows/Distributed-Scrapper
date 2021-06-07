@@ -1,12 +1,15 @@
+import zmq.sugar as zmq
+import time
+import socket
+from ..utils.const import BEACON_PORT
+
 def get_source_ip():
     import subprocess
-
     # address = subprocess.check_output(["hostname", "-s", "-I"]).decode("utf-8")[:-2]
     address = subprocess.check_output(["hostname", "-i"]).decode("utf-8")[:-1]
     return address
 
 def zpipe(ctx):
-    import zmq
     import binascii
     import os
 
@@ -19,11 +22,8 @@ def zpipe(ctx):
     b.connect(iface)
     return a, b
 
-
-import socket
 BEACON_PORT = 8001
 def net_beacon(ip, id_bits):
-    # print("Beacon Online ...")
     beacon_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     beacon_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     beacon_socket.bind(("", BEACON_PORT))
@@ -59,9 +59,6 @@ def find_nodes(id_bits) -> str:
     broadcast_socket.close()
     return ""
 
-
-import zmq.sugar as zmq
-import time
 def recieve_multipart_timeout(sock, timeout):
     start = time.time()
     while time.time() -  start < timeout:

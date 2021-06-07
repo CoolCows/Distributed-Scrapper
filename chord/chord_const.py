@@ -1,6 +1,3 @@
-REP_PORT = 8000
-BEACON_PORT = 8001
-
 ASK_JOIN = b'qjoin'
 ASK_PRED = b'qpred'
 ASK_SUCC = b'qsucc'
