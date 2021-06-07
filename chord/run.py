@@ -1,5 +1,5 @@
 import sys
-from chord import ChordNode
+from .chord import ChordNode
 
 def main(m:int):
     c = ChordNode(m)

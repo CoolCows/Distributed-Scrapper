@@ -11,7 +11,6 @@ from .utils import (
     recieve_multipart_timeout, zpipe
     )
 
-
 class ChordNode:
     def __init__(self, m) -> None:
         '''
@@ -343,7 +342,7 @@ class ChordNode:
 
     def __acknowledge_leave(self, node_ip, node_id):
         '''
-        Acknowledge a node is leaving the net to never comeback. 
+        Acknowledge a node is leaving the network to never comeback. 
         '''
         node_id = int.from_bytes(node_id, 'big')
         node_ip = node_ip.decode()
@@ -518,7 +517,7 @@ class ChordNode:
         Recomputes finger table.
         '''
         self.set_lock.acquire()
-
+        
         node = (self.node_id, self.ip)
         self.finger_table[0] =  self.node_set[self.node_set.index(node) -1]
 
