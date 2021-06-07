@@ -5,6 +5,7 @@ from threading import Lock, Thread
 import zmq.sugar as zmq
 from sortedcontainers.sortedset import SortedSet
 
+from .chord_const import *
 from ..utils.const import *
 from ..utils.tools import (
     find_nodes, get_source_ip, net_beacon,
@@ -45,7 +46,7 @@ class ChordNode:
         self.join_lock = Lock()
 
         # Debbuging and Info
-        logging.basicConfig(format = "%(levelname)s: %(message)s",level=logging.INFO)
+        logging.basicConfig(format = f"chord({self.node_id}): " + "%(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("chord")
     
     def get_finger_table(self):
