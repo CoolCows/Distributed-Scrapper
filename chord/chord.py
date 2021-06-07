@@ -5,8 +5,8 @@ from threading import Lock, Thread
 import zmq.sugar as zmq
 from sortedcontainers.sortedset import SortedSet
 
-from .chord_const import *
-from .utils import (
+from ..utils.const import *
+from ..utils.tools import (
     find_nodes, get_source_ip, net_beacon,
     recieve_multipart_timeout, zpipe
     )
@@ -20,7 +20,7 @@ class ChordNode:
         m: Represents the bits of the identifier.
         '''
         self.ip = get_source_ip()
-        self.port = REP_PORT
+        self.port = CHORD_PORT
         self.online = False
         self.joined = False
 
@@ -154,7 +154,7 @@ class ChordNode:
         t1.start()
         t2.start()
         t3.start()
-        print(f"Node {self.node_id} running on {self.ip}:{REP_PORT}")
+        print(f"Node {self.node_id} running on {self.ip}:{CHORD_PORT}")
 
     def __request_loop(self):
         send_router = self.ctx.socket(zmq.ROUTER)
@@ -191,7 +191,7 @@ class ChordNode:
         It also handles request from other nodes.
         '''
         recv_router = self.ctx.socket(zmq.ROUTER)
-        recv_router.bind(f"tcp://{self.ip}:{REP_PORT}")
+        recv_router.bind(f"tcp://{self.ip}:{CHORD_PORT}")
 
         while self.online:
             try:
@@ -276,7 +276,7 @@ class ChordNode:
 
             reply = recieve_multipart_timeout(send_router, 1)
             if len(reply) == 0:
-                self.logger.warning(f"Could not stabilize. Could not connect to {node_ip}:{REP_PORT}. Trying with other known node.")
+                self.logger.warning(f"Could not stabilize. Could not connect to {node_ip}:{CHORD_PORT}. Trying with other known node.")
                 self.__remove_node(node_id, node_ip)
                 self.__remove_id_from_ip_table(node_ip, send_router)
                 if len(self.node_set) > 1:
@@ -488,7 +488,7 @@ class ChordNode:
             return ip_table[ip]
         except KeyError:
             self.logger.debug(f"Obtaining router id of node in {ip}")
-            router.connect(f"tcp://{ip}:{REP_PORT}")
+            router.connect(f"tcp://{ip}:{CHORD_PORT}")
             try:
                 router_id, flag, node_id = recieve_multipart_timeout(router, 8)
             except ValueError:
@@ -506,7 +506,7 @@ class ChordNode:
     def __remove_id_from_ip_table(self, ip, router = None):
         self.ip_table_lock.acquire()
         if router is not None:
-            router.disconnect(f"tcp://{ip}:{REP_PORT}")
+            router.disconnect(f"tcp://{ip}:{CHORD_PORT}")
         try:
             del self.ip_router_table[ip]
         except KeyError:
