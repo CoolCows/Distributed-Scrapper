@@ -2,7 +2,7 @@ import logging
 import time
 import zmq.sugar as zmq
 from threading import Lock, Thread
-from .scrapper_const import *
+from .scraper_const import *
 from ..utils.tools import parse_address, zpipe, recieve_multipart_timeout, get_source_ip
 from ..utils.const import REP_ASOC_SCRAP_ALR, REP_SCRAP_ACK, REP_SCRAP_URL, REQ_SCRAP_ACK, SCRAP_PORT, REQ_ASOC_SCRAP, REP_ASOC_SCRAP_YES, REP_ASOC_SCRAP_NO
 
