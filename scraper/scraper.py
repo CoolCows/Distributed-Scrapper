@@ -1,10 +1,11 @@
 import logging
-import time
+import requests
 import zmq.sugar as zmq
+from bs4 import BeautifulSoup
 from threading import Lock, Thread
 from .scraper_const import *
 from ..utils.tools import parse_address, zpipe, recieve_multipart_timeout, get_source_ip
-from ..utils.const import REP_ASOC_SCRAP_ALR, REP_SCRAP_ACK, REP_SCRAP_URL, REQ_SCRAP_ACK, SCRAP_PORT, REQ_ASOC_SCRAP, REP_ASOC_SCRAP_YES, REP_ASOC_SCRAP_NO
+from ..utils.const import REP_ASOC_SCRAP_ALR, REP_SCRAP_ACK, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_PORT, REQ_ASOC_SCRAP, REP_ASOC_SCRAP_YES, REP_ASOC_SCRAP_NO
 
 
 class Scrapper:
@@ -74,17 +75,34 @@ class Scrapper:
         push_sock.connect(f"tcp://{ip}:{port + 1}")
 
         iddle = 0
-        while iddle < MAX_IDDLE:
+        while iddle < MAX_IDDLE: 
             work = recieve_multipart_timeout(pull_sock, TIMEOUT_WORK)
             if len(work) == 0:
                 iddle += 1
                 continue
             iddle = 0
-            # TODO: do work ...
-            push_sock.send_multipart([REP_SCRAP_URL, b"worked"])
+            info = work[0]
+            url = info.decode()
+
+            html, urls = self.__extract_html(url)
+            push_sock.send_pyobj((url, html, urls))
         
         pull_sock.close()
         push_sock.close()
+
+    def __extract_html(self, url):
+        reqs = requests.get(url)
+        soup = BeautifulSoup(reqs.text, "html.parser")
+
+        urls = set()
+        for link in soup.find_all("a"):
+            l = link.get("href")
+            urls.add(l)
+
+        return reqs.text, urls
+
+    # def __valid_url(self, url):
+    #     parse = urlparse
 
     def __update_workers(self):
         self.worker_threads = [None for thread in self.worker_threads if thread is None or not thread[1].is_alive()]
