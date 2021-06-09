@@ -1,6 +1,7 @@
 import zmq.sugar as zmq
 import time
 import socket
+from typing import Tuple
 from ..utils.const import BEACON_PORT
 
 def get_source_ip():
@@ -59,9 +60,9 @@ def find_nodes(id_bits) -> str:
     broadcast_socket.close()
     return ""
 
-def recieve_multipart_timeout(sock, timeout):
+def recieve_multipart_timeout(sock, timeout_sec):
     start = time.time()
-    while time.time() -  start < timeout:
+    while time.time() -  start < timeout_sec:
         try:
             res = sock.recv_multipart(zmq.NOBLOCK)
             return res
@@ -75,3 +76,10 @@ def clean_pipeline(sock):
             sock.recv_multipart(zmq.NOBLOCK)
         except zmq.error.Again:
             break
+
+def parse_address(address) -> Tuple[str, int]:
+    if isinstance(address, bytes):
+        address = address.decode()
+
+    ip_addr, ip_port = address.split(":")
+    return ip_addr, int(ip_port)
