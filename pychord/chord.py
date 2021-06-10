@@ -3,7 +3,113 @@ import sys
 from random import randint
 from threading import Thread
 import time
-from utils import FunctionCall, print_finger
+from .utils import FunctionCall, finger_table_to_str, in_between
+
+
+class DataStorage:
+    """
+    Handles data store in the form of keys-value pairs
+    """
+
+    def __init__(self, m) -> None:
+        self._dict = {}
+        self.m = m
+
+    def insert_pair(self, key, value):
+        """
+        Insert a piar key-value
+        """
+        self._dict[key] = value
+
+    def insert_pairs(self, pairs):
+        """
+        Insert an iterable of key-value pairs
+        """
+        for pair in pairs:
+            self.insert_pair(pair)
+
+    def get_key(self, key):
+        """
+        Returns key-value pair associated to key
+        """
+        return (key, self._dict[key])
+
+    def pop_key(self, key):
+        """
+        Returns and remove key-value pair associated to key
+        """
+        return (key, self._dict.pop(key))
+
+    def get_interval_keys(self, lwb, inclusive_lower, upb, inclusive_upper):
+        """
+        Returns all key-value pairs associated with all keys belonging 
+        to the interval specified
+
+        Parameters
+        ----------
+        lwb: int
+            Lower bound of the interval
+        inclusive_lower: bool
+            Specified if lower bound is inclusive
+        upb: int
+            Upper bound of the interval
+        inclusive_upper: bool
+            Specified if upper bound is inclusive
+
+        Returns
+        -------
+        A list of key-value pairs (list could be empty)
+        """
+        keys_in_interval = []
+        for key in self._dict.keys:
+            if in_between(
+                self.m,
+                key,
+                lwb=lwb,
+                lequal=inclusive_lower,
+                upb=upb,
+                requal=inclusive_upper,
+            ):
+                keys_in_interval.append(key)
+
+        return [(key, self._dict[key]) for key in keys_in_interval]
+
+    def pop_interval_keys(self, lwb, inclusive_lower, upb, inclusive_upper):
+        """
+        Returns and remove all key-value pairs associated with all keys belonging 
+        to the interval specified
+
+        Parameters
+        ----------
+        lwb: int
+            Lower bound of the interval
+        inclusive_lower: bool
+            Specified if lower bound is inclusive
+        upb: int
+            Upper bound of the interval
+        inclusive_upper: bool
+            Specified if upper bound is inclusive
+
+        Returns
+        -------
+        A list of key-value pairs (list could be empty)
+        """
+        keys_in_interval = []
+        for key in self._dict.keys:
+            if in_between(
+                self.m,
+                key,
+                lwb=lwb,
+                lequal=inclusive_lower,
+                upb=upb,
+                requal=inclusive_upper,
+            ):
+                keys_in_interval.append(key)
+
+        ret = [(key, self._dict[key]) for key in keys_in_interval]
+        for key in keys_in_interval:
+            self._dict.pop(key)
+        return ret
 
 
 class ChordNode:
@@ -17,6 +123,7 @@ class ChordNode:
         self.node_id = idx
         self.finger = [None for i in range(m + 1)]
         self.successor_list = [None]
+        self.storage = DataStorage(self.m)
 
     def rpc(self, node, funct_name, params=None, timeout=4000):
         """Remote Procedure Call between Chord's nodes. This method enables the
@@ -66,51 +173,58 @@ class ChordNode:
         return ret
 
     def _inbetween(self, key, lwb, lequal, upb, requal):
-        if not (lequal or requal) and lwb == ((upb - 1) % 2 ** self.m):
-            return False
+        return in_between(self.m, key, lwb, lequal, upb, requal)
 
-        if not lequal:
-            lwb = (lwb + 1) % (2 ** self.m)
-        if not requal:
-            upb = (upb - 1) % (2 ** self.m)
-
-        if lwb <= upb:
-            return lwb <= key and key <= upb
-        else:
-            return (lwb <= key and key <= upb + (2 ** self.m)) or (
-                lwb <= key + (2 ** self.m) and key <= upb
-            )
+    def finger_table(self):
+        """
+        Returns finger table as str
+        """
+        return finger_table_to_str(self.node_id, self.finger)
 
     def is_online(self):
-        """Returns if current node is online"""
+        """
+        Returns if current node is online
+        """
         return True
 
     def finger_start(self, i):
-        """Returns the id of the start of the interval corresponding to the ith-finger"""
+        """
+        Returns the id of the start of the interval corresponding to the ith-finger
+        """
         return (self.node_id + 2 ** (i - 1)) % (2 ** self.m)
 
     def set_predecessor(self, n):
-        """Sets n as the predecessor of the current node """
+        """
+        Sets n as the predecessor of the current node
+        """
         self.finger[0] = n
 
     def predecessor(self):
-        """Return the predecessor of the current node"""
+        """
+        Return the predecessor of the current node
+        """
         if not self.rpc(self.finger[0], "is_online"):
             self.finger[0] = None
         return self.finger[0]
 
     def successor(self):
-        """Return the successor of the current node"""
+        """
+        Return the successor of the current node
+        """
         return self.finger[1]
 
     def find_successor(self, i):
-        """Find sucessor of node i"""
+        """
+        Find sucessor of node i
+        """
         n = self.find_predecessor(i)
         n_successor = self.rpc(n, "successor")
         return n_successor
 
     def find_predecessor(self, i):
-        """Find predecessor of node i"""
+        """
+        Find predecessor of node i
+        """
         n = (self.node_id, self.address)
         n_successor = self.finger[1]
 
@@ -125,7 +239,9 @@ class ChordNode:
         return n
 
     def closest_preceding_finger(self, i):
-        """Returns closest finger preceding i"""
+        """
+        Returns closest finger preceding i
+        """
         for k in reversed(range(1, self.m + 1)):
             key = self.finger[k]
             if key is not None and self._inbetween(
@@ -135,7 +251,8 @@ class ChordNode:
         return self.node_id, self.address
 
     def join(self, idx=None, address=None):
-        """Ask current node to join the ring
+        """
+        Ask current node to join the ring
 
         Parameters
         ----------
@@ -153,7 +270,9 @@ class ChordNode:
                 self.finger[i] = (self.node_id, self.address)
 
     def stabilize(self):
-        """Periodically verify n's immediate successor and tell the successor about n"""
+        """
+        Periodically verify n's immediate successor and tell the successor about n
+        """
         successor = self.successor()
         while not self.rpc(successor, "is_online", timeout=1000):
             if not self.successor_list:
@@ -161,8 +280,6 @@ class ChordNode:
                 return
             successor = self.finger[1] = self.successor_list.pop(0)
 
-        # TODO: Move keys...
-        
         x = self.rpc(successor, "predecessor")
         if x is not None and self._inbetween(
             x[0], self.node_id, False, successor[0], False
@@ -170,28 +287,40 @@ class ChordNode:
             self.finger[1] = x
         self.rpc(self.successor(), "notify", [(self.node_id, self.address)])
 
+        # TODO: Move keys ...
+
     def notify(self, n):
-        """Notify current node that his posible predecessor is node n"""
+        """
+        Notify current node that his posible predecessor is node n
+        """
         if self.predecessor() is None or self._inbetween(
             n[0], self.predecessor()[0], False, self.node_id, False
         ):
             self.set_predecessor(n)
 
     def fix_fingers(self):
-        """Fixes a random entry in the finger table"""
+        """
+        Fixes a random entry in the finger table
+        """
         i = randint(2, self.m)
         self.finger[i] = self.find_successor(self.finger_start(i))
 
     def update_successor_list(self):
-        """Update the alternative successor list"""
+        """
+        Update the alternative successor list
+        """
         if not self.successor_list:
             self.successor_list.append(self.rpc(self.successor(), "successor"))
         elif len(self.successor_list <= self.m):
             last_alt_succ = self.successor_list[-1]
             self.successor_list.append(self.rpc(last_alt_succ, "successor"))
 
+        # TODO: Update entire list on each call
+
     def run(self):
-        """Main routine of chord node"""
+        """
+        Main routine of chord node
+        """
 
         def stabilization():
             while True:
@@ -208,7 +337,7 @@ class ChordNode:
         Thread(target=update_successorList, daemon=True).start()
 
         while True:
-            print_finger(self.node_id, self.finger)
+            print(self.finger_table())
             fun = self.reply.recv_pyobj()
             print(fun)
             try:
