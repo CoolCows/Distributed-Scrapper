@@ -20,3 +20,5 @@ def print_finger(node_id, f):
                 f"index:{index}  start:{(node_id + 2**(index -1)) % (2**(len(f)-1)) }  succ:{i[0]} {info}"
             )
     print("-------------")
+
+    
