@@ -331,7 +331,7 @@ class ChordNode:
         def update_successorList():
             while True:
                 time.sleep(1)
-                self.update_successor_list
+                self.update_successor_list()
 
         Thread(target=stabilization, daemon=True).start()
         Thread(target=update_successorList, daemon=True).start()
