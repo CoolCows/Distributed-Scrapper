@@ -4,7 +4,7 @@ import sys
 from random import randint
 from threading import Thread
 import time
-from .utils import FunctionCall, finger_table_to_str, in_between
+from utils import FunctionCall, finger_table_to_str, in_between
 
 
 class DataStorage:
@@ -21,6 +21,7 @@ class DataStorage:
         Insert a piar key-value
         """
         self._dict[key] = value
+        print(f"{3} inserted")
 
     def insert_pairs(self, pairs):
         """
@@ -62,7 +63,7 @@ class DataStorage:
         A list of key-value pairs (list could be empty)
         """
         keys_in_interval = []
-        for key in self._dict.keys:
+        for key in self._dict.keys():
             if in_between(
                 self.m,
                 key,
@@ -96,7 +97,7 @@ class DataStorage:
         A list of key-value pairs (list could be empty)
         """
         keys_in_interval = []
-        for key in self._dict.keys:
+        for key in self._dict.keys():
             if in_between(
                 self.m,
                 key,
@@ -112,6 +113,21 @@ class DataStorage:
             self._dict.pop(key)
         return ret
 
+    def get_all(self):
+        """
+        Returns all key-value pairs
+        """
+        keys = self._dict.keys()
+        return [(key, self._dict[key]) for key in keys]
+
+    def pop_all(self):
+        """
+        Returns and removes all key-value pairs
+        """
+        keys = self.get_all()
+        self._dict = {}
+        return keys
+
 
 class ChordNode:
     def __init__(self, idx, m, ip, port) -> None:
@@ -125,6 +141,7 @@ class ChordNode:
         self.finger = [None for i in range(m + 1)]
         self.successor_list = [None]
         self.storage = DataStorage(self.m)
+        self.pred_replica = DataStorage(self.m)
 
     def rpc(self, node, funct_name, params=None, timeout=4000):
         """Remote Procedure Call between Chord's nodes. This method enables the
@@ -292,10 +309,10 @@ class ChordNode:
 
     def insert_keys_locally(self, keys_values: list):
         """
-        Insert key-value pairs from current node storage
+        Insert key-value pairs in current node storage
         """
         for pair in keys_values:
-            self.storage.insert_pair(pair)
+            self.storage.insert_pair(*pair)
 
     def remove_key(self, key):
         """
@@ -309,7 +326,10 @@ class ChordNode:
         Remove key from current node storage
         """
         for key in keys:
-            self.storage.pop_key(key)
+            try:
+                self.storage.pop_key(key)
+            except KeyError:
+                pass
 
     def pop_interval_keys(
         self, lwb: int, inclusive_lower: bool, upb: int, inclusive_upb: bool
@@ -348,12 +368,7 @@ class ChordNode:
         self.rpc(self.successor(), "notify", [(self.node_id, self.address)])
 
         # Move keys
-        # x is the old predecessor of my successor
-        lwb = x if x is not None else None
-        lwb = (
-            self.predecessor() if lwb is None else lwb
-        )  # if the old predecessor of my succcessor is offline, I take mine
-
+        lwb = self.predecessor()
         if lwb is not None:
             new_keys = self.rpc(
                 node=self.successor(),
@@ -367,16 +382,39 @@ class ChordNode:
         """
         Notify current node that his posible predecessor is node n
         """
-        if self.predecessor() is None or self._inbetween(
-            n[0], self.predecessor()[0], False, self.node_id, False
+        predecessor = self.predecessor()
+        if predecessor is None or self._inbetween(
+            n[0], predecessor[0], False, self.node_id, False
         ):
             self.set_predecessor(n)
 
-    def update_replica(self):
-        pass
+    def update_pred_replica(self, keys):
+        for pair in keys:
+            self.pred_replica.insert_pair(*pair)
 
-    def clear_storage(self):
-        pass
+    def send_data_replica(self):
+        successor = self.successor()
+
+        if successor is None or successor[0] == self.node_id:
+            return
+
+        predecessor = self.predecessor()
+        upb = self.node_id
+        if predecessor is None:
+            lwb = upb
+        else:
+            lwb = predecessor[0]
+
+        keys = self.storage.get_interval_keys(lwb, False, upb, True)
+        self.rpc(successor, "update_pred_replica", [keys])
+
+    def update_storage(self):
+        predecessor = self.predecessor()
+        if predecessor is None:
+            pred_keys = self.pred_replica.pop_all()
+            self.insert_keys_locally(pred_keys)
+        else:
+            self.storage.pop_interval_keys(self.node_id, False, predecessor[0], True)
 
     def fix_fingers(self):
         """
@@ -413,11 +451,19 @@ class ChordNode:
                 time.sleep(1)
                 self.update_successor_list
 
+        def upadate_data():
+            while True:
+                time.sleep(2)
+                self.send_data_replica()
+                self.update_storage()
+
         Thread(target=stabilization, daemon=True).start()
         Thread(target=update_successorList, daemon=True).start()
+        Thread(target=upadate_data, daemon=True).start()
 
         while True:
             print(self.finger_table())
+            print(self.storage._dict)
             fun = self.reply.recv_pyobj()
             print(fun)
             try:
