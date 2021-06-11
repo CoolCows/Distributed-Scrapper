@@ -1,3 +1,4 @@
+from typing import Tuple
 import zmq.sugar as zmq
 import sys
 from random import randint
@@ -42,7 +43,7 @@ class DataStorage:
 
     def get_interval_keys(self, lwb, inclusive_lower, upb, inclusive_upper):
         """
-        Returns all key-value pairs associated with all keys belonging 
+        Returns all key-value pairs associated with all keys belonging
         to the interval specified
 
         Parameters
@@ -76,7 +77,7 @@ class DataStorage:
 
     def pop_interval_keys(self, lwb, inclusive_lower, upb, inclusive_upper):
         """
-        Returns and remove all key-value pairs associated with all keys belonging 
+        Returns and remove all key-value pairs associated with all keys belonging
         to the interval specified
 
         Parameters
@@ -269,6 +270,65 @@ class ChordNode:
             for i in range(0, self.m + 1):
                 self.finger[i] = (self.node_id, self.address)
 
+    def find_key(self, key):
+        """
+        Finds and returns key-value pair from Chord's ring
+        """
+        successor = self.find_successor(key)
+        return self.rpc(successor, "get_key", [key])
+
+    def get_key(self, key):
+        """
+        Returns key-value pair from local storage
+        """
+        return self.storage.get_key(key)
+
+    def insert_key(self, key_value: tuple):
+        """
+        Insert key-value pair in Chord's ring
+        """
+        successor = self.find_successor(key_value[0])
+        self.rpc(successor, "insert_keys_locally", [[key_value]])
+
+    def insert_keys_locally(self, keys_values: list):
+        """
+        Insert key-value pairs from current node storage
+        """
+        for pair in keys_values:
+            self.storage.insert_pair(pair)
+
+    def remove_key(self, key):
+        """
+        Remove key from Chord's ring
+        """
+        successor = self.find_successor(key)
+        self.rpc(successor, "remove_keys_locally", [[key]])
+
+    def remove_keys_locally(self, keys: list):
+        """
+        Remove key from current node storage
+        """
+        for key in keys:
+            self.storage.pop_key(key)
+
+    def pop_interval_keys(
+        self, lwb: int, inclusive_lower: bool, upb: int, inclusive_upb: bool
+    ):
+        """
+        Returns and remove all key-value pairs associated with all keys belonging
+        to the interval specified
+        """
+        return self.storage.pop_interval_keys(lwb, inclusive_lower, upb, inclusive_upb)
+
+    def get_interval_keys(
+        self, lwb: int, inclusive_lower: bool, upb: int, inclusive_upb: bool
+    ):
+        """
+        Returns all key-value pairs associated with all keys belonging
+        to the interval specified
+        """
+        return self.storage.get_interval_keys(lwb, inclusive_lower, upb, inclusive_upb)
+
     def stabilize(self):
         """
         Periodically verify n's immediate successor and tell the successor about n
@@ -287,7 +347,21 @@ class ChordNode:
             self.finger[1] = x
         self.rpc(self.successor(), "notify", [(self.node_id, self.address)])
 
-        # TODO: Move keys ...
+        # Move keys
+        # x is the old predecessor of my successor
+        lwb = x if x is not None else None
+        lwb = (
+            self.predecessor() if lwb is None else lwb
+        )  # if the old predecessor of my succcessor is offline, I take mine
+
+        if lwb is not None:
+            new_keys = self.rpc(
+                node=self.successor(),
+                funct_name="pop_interval_keys",
+                params=[lwb[0], False, self.node_id, True],
+            )
+            if new_keys is not None:
+                self.insert_keys_locally(new_keys)
 
     def notify(self, n):
         """
@@ -297,6 +371,12 @@ class ChordNode:
             n[0], self.predecessor()[0], False, self.node_id, False
         ):
             self.set_predecessor(n)
+
+    def update_replica(self):
+        pass
+
+    def clear_storage(self):
+        pass
 
     def fix_fingers(self):
         """
