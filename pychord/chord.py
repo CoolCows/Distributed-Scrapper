@@ -6,15 +6,14 @@ from sortedcontainers import SortedSet
 
 import zmq.sugar as zmq
 
-from .utils import FunctionCall, finger_table_to_str, in_between
+from utils import FunctionCall, finger_table_to_str, in_between
 
 
 class DataStorage:
-    """
-    Handles data store in the form of keys-value pairs
-    """
-
     def __init__(self, m) -> None:
+        """
+        Handles data storage in the form of keys-value pairs
+        """
         self._dict = {}
         self.m = m
 
@@ -23,7 +22,6 @@ class DataStorage:
         Insert a pair key-value
         """
         self._dict[key] = value
-        print(f"{3} inserted")
 
     def insert_pairs(self, pairs):
         """
@@ -143,7 +141,9 @@ class ChordNode:
         self.finger = [None for i in range(m + 1)]
         self.successor_list = SortedSet(
             [(self.node_id, self.address)],
-            key = lambda n: n[0] - self.node_id if n[0] >= self.node_id else 2**self.m - self.node_id + n[0]
+            key=lambda n: n[0] - self.node_id
+            if n[0] >= self.node_id
+            else 2 ** self.m - self.node_id + n[0],
         )
         self.storage = DataStorage(self.m)
         self.pred_replica = DataStorage(self.m)
@@ -289,7 +289,7 @@ class ChordNode:
         if idx is not None:
             self.finger[0] = None
             self.finger[1] = self.rpc((idx, address), "find_successor", [self.node_id])
-            self.add_node(self.rpc(self.successor(), "successor"))
+            # self.add_node(self.rpc(self.successor(), "successor"))
         else:
             for i in range(0, self.m + 1):
                 self.finger[i] = (self.node_id, self.address)
@@ -365,7 +365,7 @@ class ChordNode:
             if not self.successor_list:
                 self.finger[1] = (self.node_id, self.address)
                 return
-            successor = self.finger[1] = self.pop_node(1)
+            successor = self.finger[1] = self.pop_node(0)
 
         x = self.rpc(successor, "predecessor")
         if x is not None and self._inbetween(
@@ -396,10 +396,16 @@ class ChordNode:
             self.set_predecessor(n)
 
     def update_pred_replica(self, keys):
+        """
+        Update predecessor's replica
+        """
         for pair in keys:
             self.pred_replica.insert_pair(*pair)
 
     def send_data_replica(self):
+        """
+        Sends a replica of current keys to node's successor
+        """
         successor = self.successor()
 
         if successor is None or successor[0] == self.node_id:
@@ -416,12 +422,18 @@ class ChordNode:
         self.rpc(successor, "update_pred_replica", [keys])
 
     def update_storage(self):
+        """
+        Checks for predecessor status and in case is unknown, moves predecessor's replica
+        to local storage. It also removes all keys stored in local storage than does not
+        belong to current node.
+        """
         predecessor = self.predecessor()
-        if predecessor is None:
+        if predecessor is None or predecessor[0] == self.node_id:
             pred_keys = self.pred_replica.pop_all()
             self.insert_keys_locally(pred_keys)
-        else:
+        elif predecessor[0] != self.node_id:
             self.storage.pop_interval_keys(self.node_id, False, predecessor[0], True)
+        
 
     def fix_fingers(self):
         """
@@ -434,23 +446,29 @@ class ChordNode:
         """
         Update the alternative successor list
         """
-        if len(self.successor_list) <= self.m + 1:
+        next_succ = None
+        if len(self.successor_list) == 0:
+            next_succ = self.rpc((self.node_id, self.address), "successor")
+
+        elif len(self.successor_list) <= self.m + 1:
             next_succ = self.successor_list[-1]
-            self.add_node(self.rpc(next_succ, "successor"))
+            next_succ = self.rpc(next_succ, "successor")
 
-        #     self.successor_list = [self.rpc(self.successor(), "successor")]
-        # elif len(self.successor_list <= self.m):
-        #     last_alt_succ = self.successor_list[-1]
-        #     self.successor_list.append(self.rpc(last_alt_succ, "successor"))
+        if next_succ is not None:
+            self.add_node(next_succ)
 
-        # TODO: Update entire list on each call
-    
     def add_node(self, node):
+        """
+        Adds node to successors list
+        """
         self.succ_list_lock.acquire()
         self.successor_list.add(node)
         self.succ_list_lock.release()
-    
+
     def pop_node(self, index):
+        """
+        Returns and remove node from successors list
+        """
         self.succ_list_lock.acquire()
         n = self.successor_list.pop(index)
         self.succ_list_lock.release()
@@ -467,7 +485,7 @@ class ChordNode:
                 self.stabilize()
                 self.fix_fingers()
 
-        def update_successorList():
+        def update_successor_list():
             while True:
                 time.sleep(1)
                 self.update_successor_list()
@@ -479,7 +497,7 @@ class ChordNode:
                 self.update_storage()
 
         Thread(target=stabilization, daemon=True).start()
-        Thread(target=update_successorList, daemon=True).start()
+        Thread(target=update_successor_list, daemon=True).start()
         Thread(target=upadate_data, daemon=True).start()
 
         while True:
