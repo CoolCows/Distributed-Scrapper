@@ -128,7 +128,6 @@ class DataStorage:
         self._dict = {}
         return keys
 
-
 class ChordNode:
     def __init__(self, idx, m, ip, port) -> None:
         self.address = (ip, port)
@@ -136,17 +135,17 @@ class ChordNode:
         self.reply = self.context.socket(zmq.REP)
         self.reply.bind("tcp://*:%s" % port)
 
-        self.m = m
+        self.bits = m
         self.node_id = idx
         self.finger = [None for i in range(m + 1)]
         self.successor_list = SortedSet(
             [],
             key=lambda n: n[0] - self.node_id
             if n[0] >= self.node_id
-            else 2 ** self.m - self.node_id + n[0],
+            else 2 ** self.bits - self.node_id + n[0],
         )
-        self.storage = DataStorage(self.m)
-        self.pred_replica = DataStorage(self.m)
+        self.storage = DataStorage(self.bits)
+        self.pred_replica = DataStorage(self.bits)
 
         self.succ_list_lock = Lock()
 
@@ -198,7 +197,7 @@ class ChordNode:
         return ret
 
     def _inbetween(self, key, lwb, lequal, upb, requal):
-        return in_between(self.m, key, lwb, lequal, upb, requal)
+        return in_between(self.bits, key, lwb, lequal, upb, requal)
 
     def finger_table(self):
         """
@@ -216,7 +215,7 @@ class ChordNode:
         """
         Returns the id of the start of the interval corresponding to the ith-finger
         """
-        return (self.node_id + 2 ** (i - 1)) % (2 ** self.m)
+        return (self.node_id + 2 ** (i - 1)) % (2 ** self.bits)
 
     def set_predecessor(self, n):
         """
@@ -267,7 +266,7 @@ class ChordNode:
         """
         Returns closest finger preceding i
         """
-        for k in reversed(range(1, self.m + 1)):
+        for k in reversed(range(1, self.bits + 1)):
             key = self.finger[k]
             if key is not None and self._inbetween(
                 key[0], self.node_id, False, i, False
@@ -291,7 +290,7 @@ class ChordNode:
             self.finger[1] = self.rpc((idx, address), "find_successor", [self.node_id])
             # self.add_node(self.rpc(self.successor(), "successor"))
         else:
-            for i in range(0, self.m + 1):
+            for i in range(0, self.bits + 1):
                 self.finger[i] = (self.node_id, self.address)
 
     def find_key(self, key):
@@ -438,7 +437,7 @@ class ChordNode:
         """
         Fixes a random entry in the finger table
         """
-        i = randint(2, self.m)
+        i = randint(2, self.bits)
         self.finger[i] = self.find_successor(self.finger_start(i))
 
     def update_successor_list(self):
@@ -449,7 +448,7 @@ class ChordNode:
         if len(self.successor_list) == 0:
             next_succ = self.rpc((self.node_id, self.address), "successor")
 
-        elif len(self.successor_list) <= self.m + 1:
+        elif len(self.successor_list) <= self.bits + 1:
             next_succ = self.successor_list[-1]
             next_succ = self.rpc(next_succ, "successor")
 
