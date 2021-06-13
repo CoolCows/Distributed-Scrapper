@@ -6,7 +6,7 @@ from sortedcontainers import SortedSet
 
 import zmq.sugar as zmq
 
-from utils import FunctionCall, finger_table_to_str, in_between
+from .utils import FunctionCall, finger_table_to_str, in_between
 
 
 class DataStorage:
@@ -453,7 +453,7 @@ class ChordNode:
             next_succ = self.successor_list[-1]
             next_succ = self.rpc(next_succ, "successor")
 
-        if next_succ is not None or next_succ[0] != self.node_id:
+        if next_succ is not None and next_succ[0] != self.node_id:
             self.add_node(next_succ)
 
     def add_node(self, node):
@@ -501,7 +501,7 @@ class ChordNode:
 
         while True:
             print(self.finger_table())
-            print(self.storage._dict)
+            print(self.storage._dict.keys())
             fun = self.reply.recv_pyobj()
             print(fun)
             try:
@@ -529,7 +529,3 @@ def main():
     else:
         n.join()
     n.run()
-
-
-if __name__ == "__main__":
-    main()

@@ -1,5 +1,5 @@
 import zmq.sugar as zmq
-from utils import FunctionCall
+from .utils import FunctionCall
 
 
 class ChordClient:
@@ -60,6 +60,3 @@ class ChordClient:
                 self.context.destroy()
                 exit()
 
-
-client = ChordClient()
-client.run()
