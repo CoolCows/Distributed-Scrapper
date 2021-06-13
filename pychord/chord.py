@@ -496,7 +496,7 @@ class ChordNode:
                 time.sleep(1)
                 self.update_successor_list()
 
-        def upadate_data():
+        def update_data():
             while True:
                 time.sleep(2)
                 self.send_data_replica()
@@ -504,7 +504,7 @@ class ChordNode:
 
         Thread(target=stabilization, daemon=True).start()
         Thread(target=update_successor_list, daemon=True).start()
-        Thread(target=upadate_data, daemon=True).start()
+        Thread(target=update_data, daemon=True).start()
 
         while True:
             self.logger.info(self.finger_table())
@@ -516,7 +516,7 @@ class ChordNode:
                 self.logger.info("Sending reply...")
                 self.reply.send_pyobj(ret)
             except AttributeError:
-                self.logger.info(f"Request {funct} unknown")
+                self.logger.info(f"Warning: Request {funct} unknown")
 
 
 def main():
