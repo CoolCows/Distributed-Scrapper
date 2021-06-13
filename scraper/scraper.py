@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from threading import Lock, Thread
 from .scraper_const import *
 from ..utils.tools import parse_address, zpipe, recieve_multipart_timeout, get_source_ip
-from ..utils.const import REP_ASOC_SCRAP_ALR, REP_SCRAP_ACK, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_PORT, REQ_ASOC_SCRAP, REP_ASOC_SCRAP_YES, REP_ASOC_SCRAP_NO
+from ..utils.const import REP_ASOC_SCRAP_ALR, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_PORT, REQ_SCRAP_ASOC, REP_SCRAP_ASOC_YES, REP_SCRAP_ASOC_NO
 
 
 class Scrapper:
@@ -28,12 +28,19 @@ class Scrapper:
         logging.basicConfig(format = "scrapper: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("scrapper")
 
-    def run(self) -> None:
-        iproc_sock =  self.__associate_to_chord()
-        if iproc_sock is None:
-            self.logger.error("Could not establish comunication with chord node. Exiting ...")
-            return
-
+    def run(self):
+        self.logger.info(f"Starting scrapper at {self.ip}:{SCRAP_PORT}")
+        self.online = True
+        while self.online:
+            # In case __communication_loop stops unexpectedly, it starts again
+            try:
+                self.__communication_loop()
+            except Exception as err:
+                if isinstance(Exception, KeyboardInterrupt):
+                    self.online = False
+                else:
+                    self.logger.error(f"Error in communication loop, restarting: {err.text}")
+        self.logger.info("Waiting for worker threads to finish ...")
 
     def __communication_loop(self):
         comm_sock = self.ctx.socket(zmq.ROUTER)
@@ -45,22 +52,25 @@ class Scrapper:
                 continue
             
             sock_id, flag, info = request
-            if flag == REQ_ASOC_SCRAP:
+            if flag == REQ_SCRAP_ASOC:
                 sock_addr = info.decode()
                 self.__update_workers()
-                if sock_addr in [val[0] for val in self.worker_threads]:
-                    comm_sock.send_multipart([sock_id, REP_ASOC_SCRAP_ALR, b""])
-                elif self.num_threads < self.max_threads:
-                    self.create_worker(sock_addr)
-                    comm_sock.send_multipart([sock_id, REP_ASOC_SCRAP_YES, b""])
+                if self.num_threads < self.max_threads:
+                    self.__create_worker(sock_addr)
+                    comm_sock.send_multipart([sock_id, REP_SCRAP_ASOC_YES])
                 else:
-                    comm_sock.send_multipart([sock_id, REP_ASOC_SCRAP_NO, b""])
+                    comm_sock.send_multipart([sock_id, REP_SCRAP_ASOC_NO])
+            elif flag == REQ_SCRAP_ACK:
+                if len([val[0] for val in self.worker_threads if val[0] == sock_addr]) > 0:
+                    comm_sock.send_multipart([sock_id, REP_SCRAP_ACK_CONN])
+                else:
+                    comm_sock.send_multipart([sock_id, REP_SCRAP_ACK_NO_CONN])
             else:
-                raise Exception(f"Unknown Flag recieved: {flag}")
+                raise Exception(f"Scrapper: Unknown Flag recieved: {flag}")
         
         comm_sock.close()
              
-    def create_worker(self, addr):
+    def __create_worker(self, addr):
         index = self.worker_threads.index(None)
         t = Thread(target=self.__work_loop, args=(addr, index))
         self.worker_threads[index] = (addr, t)
@@ -87,10 +97,12 @@ class Scrapper:
             html, urls = self.__extract_html(url)
             push_sock.send_pyobj((url, html, urls))
         
+        self.logger.debug(f"Worker thread({thread_id}) closing.")
         pull_sock.close()
         push_sock.close()
 
     def __extract_html(self, url):
+        self.logger.debug(f"Extracting html from {url}")
         reqs = requests.get(url)
         soup = BeautifulSoup(reqs.text, "html.parser")
 
