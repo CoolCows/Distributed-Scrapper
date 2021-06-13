@@ -8,8 +8,8 @@ from ..pychord import ChordNode
 class ScrapChordNode(ChordNode):
     def __init__(self, idx, m, ip, port) -> None:
         super().__init__(idx, m, ip, port)
-        
         self.online = False
+        self.scrapper_list = []
         
         logging.basicConfig(format = "scrapper: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("scrapper")
@@ -19,10 +19,10 @@ class ScrapChordNode(ChordNode):
         comm_sock.probe_router = 1
         
         id_ip_tabe = dict()
-        scrapper_list = []
+        
 
         while self.online:
-            if len(scrapper_list) == 0:
+            if len(self.scrapper_list) == 0:
                 scrapper_addrs = self.find_scrapper(tolerance=3)
                 if scrapper_addrs == "":
                     self.logger.warning("No online scrapper found")
