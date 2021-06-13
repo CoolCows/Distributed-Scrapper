@@ -140,7 +140,7 @@ class ChordNode:
         self.node_id = idx
         self.finger = [None for i in range(m + 1)]
         self.successor_list = SortedSet(
-            [(self.node_id, self.address)],
+            [],
             key=lambda n: n[0] - self.node_id
             if n[0] >= self.node_id
             else 2 ** self.m - self.node_id + n[0],
@@ -433,7 +433,6 @@ class ChordNode:
             self.insert_keys_locally(pred_keys)
         elif predecessor[0] != self.node_id:
             self.storage.pop_interval_keys(self.node_id, False, predecessor[0], True)
-        
 
     def fix_fingers(self):
         """
@@ -454,7 +453,7 @@ class ChordNode:
             next_succ = self.successor_list[-1]
             next_succ = self.rpc(next_succ, "successor")
 
-        if next_succ is not None:
+        if next_succ is not None or next_succ[0] != self.node_id:
             self.add_node(next_succ)
 
     def add_node(self, node):
