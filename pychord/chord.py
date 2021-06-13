@@ -1,5 +1,6 @@
 import sys
 import time
+import logging
 from random import randint
 from threading import Lock, Thread
 from sortedcontainers import SortedSet
@@ -59,6 +60,7 @@ class DataStorage:
             Specified if upper bound is inclusive
 
         Returns
+        import logging
         -------
         A list of key-value pairs (list could be empty)
         """
@@ -148,6 +150,9 @@ class ChordNode:
         self.pred_replica = DataStorage(self.bits)
 
         self.succ_list_lock = Lock()
+        
+        logging.basicConfig(format = "chordnode: %(levelname)s: %(message)s", level=logging.INFO)
+        self.logger = logging.getLogger("chordnode")
 
     def rpc(self, node, funct_name, params=None, timeout=4000):
         """Remote Procedure Call between Chord's nodes. This method enables the
@@ -183,6 +188,8 @@ class ChordNode:
 
         request = self.context.socket(zmq.REQ)
         request.connect(f"tcp://{ip}:{port}")
+        self.logger.info(f"Sending RPC '{funct_name} {params}' to node {node_id}...")
+        
         request.send_pyobj(FunctionCall(funct_name, params))
 
         poller = zmq.Poller()
@@ -192,6 +199,7 @@ class ChordNode:
         if ready:
             ret = request.recv_pyobj()
         else:
+            self.logger.info("Request for RPC timeout :(")
             ret = None
         request.close()
         return ret
@@ -499,16 +507,16 @@ class ChordNode:
         Thread(target=upadate_data, daemon=True).start()
 
         while True:
-            print(self.finger_table())
-            print(self.storage._dict.keys())
+            self.logger.info(self.finger_table())
+            self.logger.info(self.storage._dict.keys())
             fun = self.reply.recv_pyobj()
-            print(fun)
             try:
                 funct = getattr(self, fun.name)
                 ret = funct(*fun.params)
+                self.logger.info("Sending reply...")
                 self.reply.send_pyobj(ret)
             except AttributeError:
-                pass
+                self.logger.info(f"Request {funct} unknown")
 
 
 def main():
