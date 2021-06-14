@@ -83,7 +83,7 @@ class ScrapChordNode(ChordNode):
     def get_scrappers(self):
         return self.scrapper_list
 
-    def find_scrapppers_chord(self):
+    def find_scrappers_chord(self):
         scrappers_found = []
         current_node = (self.node_id, self.address)
         successor = self.successor()
