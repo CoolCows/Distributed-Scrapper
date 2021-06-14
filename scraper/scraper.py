@@ -12,6 +12,7 @@ from ..utils.const import BEACON_PORT, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN
 class Scrapper:
     def __init__(self, max_threads:int, visible:bool = False) -> None:
         self.online = False
+        self.visible = visible
 
         self.max_threads = max_threads
         self.worker_threads = [None for _ in range(max_threads)]
@@ -33,6 +34,10 @@ class Scrapper:
     def run(self):
         self.logger.info(f"Starting scrapper at {self.ip}:{SCRAP_PORT}")
         self.online = True
+
+        if self.visible:
+            Thread(target=self.__scrapper_beacon, daemon=True).start()
+
         while self.online:
             # In case __communication_loop stops unexpectedly, it starts again
             try:
