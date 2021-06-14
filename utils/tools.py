@@ -1,7 +1,7 @@
 import zmq.sugar as zmq
 import time
 import socket
-from typing import Tuple
+from typing import List, Tuple, Union
 from ..utils.const import BEACON_PORT
 
 def get_source_ip():
@@ -76,6 +76,37 @@ def clean_pipeline(sock):
             sock.recv_multipart(zmq.NOBLOCK)
         except zmq.error.Again:
             break
+
+def get_router(ctx:zmq.Context) -> zmq.Socket:
+    router = ctx.socket(zmq.ROUTER)
+    router.router_mandatory = 1
+    return router
+
+def connect_router(router:zmq.Socket, address:Union[Tuple, str]) -> None:
+    if isinstance(address, tuple):
+        address = f"{address[0]}:{address[1]}"
+    router.connect_rid = address.encode()
+    router.connect(f"tcp://{address}")
+ 
+def recv_from_router(router:zmq.Socket, address:str, timeout_sec:int = 1) -> Tuple:
+    message = ()
+    pending = []
+    start = time.time()
+    while time.time() - start < timeout_sec:
+        rep = recieve_multipart_timeout(router, timeout_sec)
+        if len(rep) == 0:
+            break
+        idx, *_ = rep
+        if idx.decode() == address:
+            message = (idx, *_)
+            break
+        else:
+            pending.append((idx, *_))
+    return message, pending
+
+def register_socks(poller:zmq.Poller, *sockets) -> None:
+    for sock in sockets:
+        poller.register(sock, zmq.POLLIN)
 
 def parse_address(address) -> Tuple[str, int]:
     if isinstance(address, bytes):
