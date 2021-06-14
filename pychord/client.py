@@ -29,6 +29,7 @@ class ChordClient:
         return []
 
     def run(self):
+        poller = zmq.Poller()
         while True:
             try:
                 print("Enter node's address")
@@ -45,7 +46,6 @@ class ChordClient:
                 request.connect(f"tcp://{ip}:{port}")
                 request.send_pyobj(FunctionCall(command, params))
 
-                poller = zmq.Poller()
                 poller.register(request, zmq.POLLIN)
 
                 ready = dict(poller.poll(5000))
