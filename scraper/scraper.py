@@ -1,11 +1,13 @@
 import logging
+import pickle
+from typing import Tuple
 import requests
 import socket
 import zmq.sugar as zmq
 from bs4 import BeautifulSoup
 from threading import Lock, Thread
 from .scraper_const import *
-from ..utils.tools import parse_address, zpipe, recieve_multipart_timeout, get_source_ip
+from ..utils.tools import get_router, zpipe, recieve_multipart_timeout, get_source_ip
 from ..utils.const import BEACON_PORT, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_PORT, REQ_SCRAP_ASOC, REP_SCRAP_ASOC_YES, REP_SCRAP_ASOC_NO
 
 
@@ -50,20 +52,17 @@ class Scrapper:
         self.logger.info("Waiting for worker threads to finish ...")
 
     def __communication_loop(self):
-        comm_sock = self.ctx.socket(zmq.ROUTER)
+        comm_sock = get_router(self.ctx)
         comm_sock.bind(f"tcp://{self.ip}:{SCRAP_PORT}")
 
         while self.online:
             request = recieve_multipart_timeout(comm_sock, TIMEOUT_COMM)
             if len(request) == 0:
                 continue
-            if len(request == 2) and request[1] ==  b"":
-                comm_sock.send_multipart([request[0], b""])
-                continue
-            
+
             sock_id, flag, info = request
             if flag == REQ_SCRAP_ASOC:
-                sock_addr = info.decode()
+                sock_addr = pickle.load(info)
                 self.__update_workers()
                 if self.num_threads < self.max_threads:
                     self.__create_worker(sock_addr)
@@ -80,7 +79,7 @@ class Scrapper:
         
         comm_sock.close()
              
-    def __create_worker(self, addr):
+    def __create_worker(self, addr:Tuple):
         index = self.worker_threads.index(None)
         t = Thread(target=self.__work_loop, args=(addr, index))
         self.worker_threads[index] = (addr, t)
@@ -88,11 +87,11 @@ class Scrapper:
         t.start()
 
     def __work_loop(self, addr, thread_id):
-        ip, port = parse_address(addr)
+        ip, port = addr
         pull_sock = self.ctx.socket(zmq.PULL)
         push_sock = self.ctx.socket(zmq.PUSH)
-        pull_sock.connect(f"tcp://{ip}:{port}")
-        push_sock.connect(f"tcp://{ip}:{port + 1}")
+        pull_sock.connect(f"tcp://{ip}:{port + 1}")
+        push_sock.connect(f"tcp://{ip}:{port + 2}")
 
         iddle = 0
         while iddle < MAX_IDDLE: 
