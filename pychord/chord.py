@@ -199,7 +199,7 @@ class ChordNode:
         if ready:
             ret = request.recv_pyobj()
         else:
-            self.logger.info("Request for RPC timeout :(")
+            self.logger.warning("Request for RPC timeout :(")
             ret = None
         request.close()
         return ret
@@ -392,6 +392,9 @@ class ChordNode:
             if new_keys is not None:
                 self.insert_keys_locally(new_keys)
 
+        self.logger.info(self.finger_table())
+        self.logger.info(self.storage._dict.keys())
+
     def notify(self, n):
         """
         Notify current node that his posible predecessor is node n
@@ -507,16 +510,14 @@ class ChordNode:
         Thread(target=update_data, daemon=True).start()
 
         while True:
-            self.logger.info(self.finger_table())
-            self.logger.info(self.storage._dict.keys())
             fun = self.reply.recv_pyobj()
             try:
                 funct = getattr(self, fun.name)
                 ret = funct(*fun.params)
-                self.logger.info("Sending reply...")
+                self.logger.info(f"Sending reply for {funct}...")
                 self.reply.send_pyobj(ret)
             except AttributeError:
-                self.logger.info(f"Warning: Request {funct} unknown")
+                self.logger.warning(f"Request {funct} unknown")
 
 
 def main():
