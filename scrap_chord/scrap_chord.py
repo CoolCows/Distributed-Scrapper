@@ -1,5 +1,6 @@
 import logging
-from utils.tools import recieve_multipart_timeout
+import sys
+from utils.tools import recieve_multipart_timeout, zpipe
 import zmq.sugar as zmq
 import socket
 from ..utils.const import BEACON_PORT, SCRAP_CHORD_BEACON_PORT
@@ -9,31 +10,52 @@ class ScrapChordNode(ChordNode):
     def __init__(self, idx, m, ip, port) -> None:
         super().__init__(idx, m, ip, port)
         self.online = False
-        self.scrapper_list = []
+        self.scrapper_list = set()
+
+        self.usr_push_pipe = zpipe(self.context)
+        self.usr_pull_pipe = zpipe(self.context)
         
         logging.basicConfig(format = "scrapper: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("scrapper")
-
+    
+    def communicate_with_client(self):
+        comm_sock = self.context.socket(zmq.ROUTER)
+        comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1]}")
+       
     def communicate_with_scrapper(self):
         comm_sock = self.context.socket(zmq.ROUTER)
         comm_sock.probe_router = 1
         
-        id_ip_tabe = dict()
-        
-
+        ip_id_table = dict()
         while self.online:
             if len(self.scrapper_list) == 0:
                 scrapper_addrs = self.find_scrapper(tolerance=3)
                 if scrapper_addrs == "":
                     self.logger.warning("No online scrapper found")
                     continue
+                self.connect_to_scrapper(comm_sock, scrapper_addrs, ip_id_table)
+
+    #TODO: Bind push and pull sock to certain location 
+    def push_work(self):
+        push_sock = self.context.socket(zmq.PUSH)
+        while True:
+            req = self.usr_push_pipe[1].recv_multipart()
+            # TODO: Send multipart
+
+    def pull_work(self):
+        pull_sock = self.context.socket(zmq.PULL)
+        while True:
+            obj = pull_sock.recv_pyobj()
+            self.usr_pull_pipe[1].send_pyobj(obj)
     
-    def connect_to_scrapper(self, sock, address, id_ip_stable):
+    def connect_to_scrapper(self, sock, address, ip_id_table):
         sock.connect(f"tcp://{address}")
         req = recieve_multipart_timeout(sock, 3)
         if req == 0:
-            self.logger.info(f"Could not connect to scrapper at")
-        sock.send_multipart()
+            self.logger.info(f"Could not connect to scrapper at {address}")
+            return
+        ip_id_table[address] = req[0]
+        self.scrapper_list.add(address)
 
     def find_scrapper(self, tolerance) -> str:
         self.logger.debug("Searching for online scrappers")
@@ -48,7 +70,7 @@ class ScrapChordNode(ChordNode):
             try:
                 info, addr = broadcast_socket.recvfrom(1024)
                 if info == b"PONG":
-                    print(f"Found on-line peer: {addr[0]}:{BEACON_PORT - 1}")
+                    self.logger.debug(f"Found on-line scrapper at {addr[0]}:{BEACON_PORT - 1}")
                     broadcast_socket.close()
                     return addr[0]
             except socket.timeout:
