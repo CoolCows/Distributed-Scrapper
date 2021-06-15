@@ -12,7 +12,7 @@ from utils.const import CODE_WORD_SCRAP, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CO
 
 
 class Scrapper:
-    def __init__(self, max_threads:int, visible:bool = False) -> None:
+    def __init__(self, port, max_threads:int, visible:bool = False) -> None:
         self.online = False
         self.visible = visible
 
@@ -21,7 +21,7 @@ class Scrapper:
         self.num_threads = 0
         
         self.ctx = zmq.Context()
-        self.ip = get_source_ip()
+        self.address = (get_source_ip(), port)
         
         # inproc
         self.pipe = zpipe(self.ctx)
