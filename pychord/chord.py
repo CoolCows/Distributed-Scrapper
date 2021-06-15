@@ -153,7 +153,7 @@ class ChordNode:
 
         self.succ_list_lock = Lock()
         
-        logging.basicConfig(format = "chordnode: %(levelname)s: %(message)s", level=logging.INFO)
+        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("chordnode")
 
     def rpc(self, node, funct_name, params=None, timeout=4000):
@@ -394,8 +394,8 @@ class ChordNode:
             if new_keys is not None:
                 self.insert_keys_locally(new_keys)
 
-        self.logger.info(self.finger_table())
-        self.logger.info(self.storage._dict.keys())
+        self.logger.debug(self.finger_table())
+        self.logger.debug(self.storage._dict.keys())
 
     def notify(self, n):
         """

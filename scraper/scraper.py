@@ -30,8 +30,8 @@ class Scrapper:
         self.lock = Lock()
 
         # debbug & info
-        logging.basicConfig(format = "scrapper: %(levelname)s: %(message)s", level=logging.INFO)
-        self.logger = logging.getLogger("scrapper")
+        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.INFO)
+        self.logger = logging.getLogger("scraper")
 
     def run(self):
         self.logger.info(f"Starting scrapper at {self.ip}:{SCRAP_PORT}")

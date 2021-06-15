@@ -1,9 +1,7 @@
 import logging
-from operator import add
 from scrap_chord.util import in_between
 import sys
 import pickle
-from hashlib import blake2b, sha1
 from threading import Lock, Thread
 from typing import Tuple
 from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, REP_CLIENT_INFO, REP_CLIENT_NODE
@@ -26,7 +24,7 @@ class ScrapChordClient:
         self.online = True
 
         # debbug & info
-        logging.basicConfig(format = "client: %(levelname)s: %(message)s", level=logging.INFO)
+        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("client")
 
     def run(self, address:str = ""):

@@ -27,7 +27,7 @@ class ScrapChordNode(ChordNode):
         self.chord_push_pipe = zpipe(self.context)
         self.chord_scrap_pipe = zpipe(self.context)
         
-        logging.basicConfig(format = "scrapkord: %(levelname)s: %(message)s", level=logging.INFO)
+        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("scrapkord")
 
     def run(self):
@@ -50,6 +50,7 @@ class ScrapChordNode(ChordNode):
         self.communicate_with_client()
 
     def communicate_with_client(self):
+        self.online = True
         comm_sock = get_router(self.context)
         comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 1}")
 
