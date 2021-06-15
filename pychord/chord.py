@@ -488,7 +488,7 @@ class ChordNode:
         Main routine of chord node
         """
 
-        self.run_basic_comm_features()
+        self.start_chord_functionality()
 
         while True:
             fun = self.reply.recv_pyobj()
@@ -500,7 +500,7 @@ class ChordNode:
             except AttributeError:
                 self.logger.warning(f"Request {funct} unknown")
 
-    def run_basic_comm_features(self):
+    def start_chord_functionality(self):
         def stabilization():
             while True:
                 time.sleep(1)

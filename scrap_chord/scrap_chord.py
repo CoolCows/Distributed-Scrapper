@@ -77,6 +77,7 @@ class ScrapChordNode(ChordNode):
     def handle_request(self, url:str):
         url_id = get_id(url)
         n = self.find_successor(url_id)
+        
                 
     def communicate_with_scraper(self):
         comm_sock = get_router(self.context)

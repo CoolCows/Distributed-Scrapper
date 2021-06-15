@@ -1,12 +1,4 @@
-def in_between(m, key, lwb, lequal, upb, requal):
-    if not (lequal or requal) and lwb == ((upb - 1) % 2 ** m):
-        return False
-
-    if not lequal:
-        lwb = (lwb + 1) % (2 ** m)
-    if not requal:
-        upb = (upb - 1) % (2 ** m)
-
+def in_between(m, key, lwb, upb):
     if lwb <= upb:
         return lwb <= key and key <= upb
     else:
