@@ -6,12 +6,12 @@ import pickle
 from hashlib import blake2b, sha1
 from threading import Lock, Thread
 from typing import Tuple
-from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, HASH_SEED, REP_CLIENT_INFO, REP_CLIENT_NODE
+from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, REP_CLIENT_INFO, REP_CLIENT_NODE
 
 import zmq.sugar as zmq
 from sortedcontainers import SortedSet
 
-from ..utils.tools import connect_router, find_nodes, get_id, get_router, get_source_ip, parse_address, register_socks, zpipe
+from utils.tools import connect_router, find_nodes, get_id, get_router, get_source_ip, parse_address, register_socks, zpipe
 
 
 class ScrapChordClient:
@@ -90,6 +90,7 @@ class ScrapChordClient:
                 pending_recv.add(url)
                 target_addr = self.select_target_node(url, known_nodes)
                 message = pickle.dumps((url, self.address))
+                connect_router(comm_sock, target_addr)
                 comm_sock.send_multipart([target_addr.encode(), message])
 
     def select_target_node(self, url, known_nodes) -> str:

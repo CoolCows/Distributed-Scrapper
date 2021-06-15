@@ -7,8 +7,8 @@ import zmq.sugar as zmq
 from bs4 import BeautifulSoup
 from threading import Lock, Thread
 from .scraper_const import *
-from ..utils.tools import get_router, net_beacon, zpipe, recieve_multipart_timeout, get_source_ip
-from ..utils.const import BEACON_PORT, CODE_WORD_SCRAP, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_BEACON_PORT, SCRAP_PORT, REQ_SCRAP_ASOC, REP_SCRAP_ASOC_YES, REP_SCRAP_ASOC_NO
+from utils.tools import get_router, net_beacon, zpipe, recieve_multipart_timeout, get_source_ip
+from utils.const import CODE_WORD_SCRAP, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_BEACON_PORT, SCRAP_PORT, REQ_SCRAP_ASOC, REP_SCRAP_ASOC_YES, REP_SCRAP_ASOC_NO
 
 
 class Scrapper:
@@ -130,13 +130,4 @@ class Scrapper:
     def __update_workers(self):
         self.worker_threads = [None for thread in self.worker_threads if thread is None or not thread[1].is_alive()]
         self.num_threads = len([thread for thread in self.worker_threads if thread is not None])
-
-    def __scrapper_beacon(self):
-        beacon_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        beacon_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        beacon_socket.bind(("", BEACON_PORT))
-        while True:
-            info, addr = beacon_socket.recvfrom(1024)
-            if info.startswith(b"PING"):
-                beacon_socket.sendto("PONG".encode(), addr)
 
