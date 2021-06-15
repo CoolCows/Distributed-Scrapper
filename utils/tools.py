@@ -38,21 +38,20 @@ def net_beacon(node_port:int, beacon_port:int, code_word:str) -> NoReturn:
         if info == b"ping" + code_byte:
             beacon_socket.sendto(b"pong" + code_byte + b"@" + port_byte, addr)
 
-def find_nodes(port:int, code_word:str, tolerance:int = 3, all:bool = False) -> List[Tuple[str, int]]:
-    code_byte = code_word.encode()
+def find_nodes(port:int, code_word:bytes, tolerance:int = 3, all:bool = False) -> List[Tuple[str, int]]:
     broadcast_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     broadcast_socket.settimeout(0.5)
     nodes = []
     while tolerance > 0:
         broadcast_socket.sendto(
-            b"ping" + code_byte,
+            b"ping" + code_word,
             ("<broadcast>", port)
         )
         try:
             while True:
                 info, addr = broadcast_socket.recvfrom(1024)
-                if info.startswith(b"pong" + code_byte):
+                if info.startswith(b"pong" + code_word):
                     tolerance = 0
                     node_port = int(info.split(b'@')[1].decode())
                     nodes.append(addr[0], node_port)

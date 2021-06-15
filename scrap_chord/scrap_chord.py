@@ -31,6 +31,7 @@ class ScrapChordNode(ChordNode):
         self.logger = logging.getLogger("scrapkord")
 
     def run(self):
+        self.logger.info(f"ScrapKord running on {self.address[0]}:{self.address[1]}")
         self.start_chord_functionality()
 
         # comm_client = Thread(target=self.communicate_with_client)
@@ -56,7 +57,6 @@ class ScrapChordNode(ChordNode):
 
         router_table = dict()
         request_table = dict()
-        # addr_byte = pickle.dumps(self.address)
 
         poller = zmq.Poller()
         register_socks(poller, self.chord_push_pipe[0], comm_sock)

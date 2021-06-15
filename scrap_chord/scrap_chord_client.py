@@ -28,17 +28,17 @@ class ScrapChordClient:
         self.logger = logging.getLogger("client")
 
     def run(self, address:str = ""):
-        self.logger.info(f"Running on {self.address[0]}:{self.address[1]}")
+        self.logger.info(f"Client running on {self.address[0]}:{self.address[1]}")
 
         known_nodes = SortedSet(key = lambda n: n[0])
         if address == "":
             self.logger.info("No adress specified, finding chords online ...")
-            self.add_node(known_nodes, self.get_chord_nodes())
+            self.add_node(known_nodes, *self.get_chord_nodes())
             if len(known_nodes) == 0:
                 self.logger.info("No available chord nodes found. Exiting ...")
                 return
         else:
-            self.add_node(parse_address(address))
+            self.add_node(known_nodes, parse_address(address))
         
         t = Thread(target=self.communicate_with_chord, args=(known_nodes,), daemon=True)
         t.start()
@@ -108,7 +108,7 @@ class ScrapChordClient:
         for addr in known_nodes:
             addr_hash = f"{addr[0]}:{addr[1]}"
             idx = get_id(addr_hash) % (2 ** self.bits)
-            known_nodes.add(idx, addr)
+            known_nodes.add((idx, addr))
 
     def get_chord_nodes(self):
         chord_nodes = find_nodes(

@@ -34,7 +34,7 @@ class Scrapper:
         self.logger = logging.getLogger("scraper")
 
     def run(self):
-        self.logger.info(f"Starting scrapper at {self.ip}:{SCRAP_PORT}")
+        self.logger.info(f"Scrapper running at {self.address[0]}:{self.address[1]}")
         self.online = True
 
         if self.visible:
@@ -47,18 +47,19 @@ class Scrapper:
 
         while self.online:
             # In case __communication_loop stops unexpectedly, it starts again
-            try:
-                self.__communication_loop()
-            except Exception as err:
-                if isinstance(Exception, KeyboardInterrupt):
-                    self.online = False
-                else:
-                    self.logger.error(f"Error in communication loop, restarting: {err.text}")
+            self.__communication_loop()
+            # try:
+            #     self.__communication_loop()
+            # except Exception:
+            #     if isinstance(Exception, KeyboardInterrupt):
+            #         self.online = False
+            #     else:
+            #         self.logger.error(f"Error in communication loop, restarting")
         self.logger.info("Waiting for worker threads to finish ...")
 
     def __communication_loop(self):
         comm_sock = get_router(self.ctx)
-        comm_sock.bind(f"tcp://{self.ip}:{SCRAP_PORT}")
+        comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1]}")
 
         while self.online:
             request = recieve_multipart_timeout(comm_sock, TIMEOUT_COMM)
