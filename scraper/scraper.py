@@ -7,8 +7,8 @@ import zmq.sugar as zmq
 from bs4 import BeautifulSoup
 from threading import Lock, Thread
 from .scraper_const import *
-from ..utils.tools import get_router, zpipe, recieve_multipart_timeout, get_source_ip
-from ..utils.const import BEACON_PORT, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_PORT, REQ_SCRAP_ASOC, REP_SCRAP_ASOC_YES, REP_SCRAP_ASOC_NO
+from ..utils.tools import get_router, net_beacon, zpipe, recieve_multipart_timeout, get_source_ip
+from ..utils.const import BEACON_PORT, CODE_WORD_SCRAP, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_BEACON_PORT, SCRAP_PORT, REQ_SCRAP_ASOC, REP_SCRAP_ASOC_YES, REP_SCRAP_ASOC_NO
 
 
 class Scrapper:
@@ -38,7 +38,12 @@ class Scrapper:
         self.online = True
 
         if self.visible:
-            Thread(target=self.__scrapper_beacon, daemon=True).start()
+            if self.visible:
+                Thread(
+                    target=net_beacon,
+                    args=(self.address[1], SCRAP_BEACON_PORT, CODE_WORD_SCRAP),
+                    daemon=True
+                )
 
         while self.online:
             # In case __communication_loop stops unexpectedly, it starts again
@@ -121,10 +126,7 @@ class Scrapper:
             urls.add(l)
 
         return reqs.text, urls
-
-    # def __valid_url(self, url):
-    #     parse = urlparse
-
+        
     def __update_workers(self):
         self.worker_threads = [None for thread in self.worker_threads if thread is None or not thread[1].is_alive()]
         self.num_threads = len([thread for thread in self.worker_threads if thread is not None])
@@ -138,6 +140,3 @@ class Scrapper:
             if info.startswith(b"PING"):
                 beacon_socket.sendto("PONG".encode(), addr)
 
-
-    # Chord pregunta por el scrapper
-    # Saber donde se inicializa el socket push
