@@ -12,6 +12,7 @@ import socket
 from ..utils.const import BEACON_PORT, REP_SCRAP_ACK_CONN, REP_SCRAP_ASOC_YES, REQ_SCRAP_ACK, REQ_SCRAP_ASOC, SCRAP_CHORD_BEACON_PORT
 from ..pychord import ChordNode
 
+
 class ScrapChordNode(ChordNode):
     def __init__(self, idx, m, ip, port) -> None:
         super().__init__(idx, m, ip, port)
@@ -24,7 +25,7 @@ class ScrapChordNode(ChordNode):
         
         logging.basicConfig(format = "scrapper: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("scrapper")
-    
+
     def communicate_with_client(self):
         comm_sock = get_router(self.context)
         comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1]}")
@@ -123,14 +124,13 @@ class ScrapChordNode(ChordNode):
         broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         broadcast_socket.settimeout(0.5)
         while tolerance > 0:
-            broadcast_socket.sendto(
-                b"PING",
-                ("<broadcast>", BEACON_PORT)
-            )
+            broadcast_socket.sendto(b"PING", ("<broadcast>", BEACON_PORT))
             try:
                 info, addr = broadcast_socket.recvfrom(1024)
                 if info == b"PONG":
-                    self.logger.debug(f"Found on-line scrapper at {addr[0]}:{BEACON_PORT - 1}")
+                    self.logger.debug(
+                        f"Found on-line scrapper at {addr[0]}:{BEACON_PORT - 1}"
+                    )
                     broadcast_socket.close()
                     return addr[0]
             except socket.timeout:
@@ -151,3 +151,22 @@ class ScrapChordNode(ChordNode):
             request_table[request].add(request_giver)
         except KeyError:
             request_table[request] = set([request_giver])
+
+    def get_scrappers(self):
+        return self.scrapper_list
+
+    def find_scrappers_chord(self):
+        scrappers_found = []
+        current_node = (self.node_id, self.address)
+        successor = self.successor()
+
+        while (
+            not scrappers_found and successor is not None and successor != current_node
+        ):
+            scrappers = self.rpc(successor, "get_scrappers")
+            if scrappers is not None:
+                scrappers_found = [scrapper for scrapper in scrappers]
+
+            successor = self.rpc(successor, "successor")
+
+        return scrappers_found

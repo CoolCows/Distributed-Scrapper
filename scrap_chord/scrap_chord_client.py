@@ -7,7 +7,7 @@ from typing import Tuple
 import zmq.sugar as zmq
 from sortedcontainers import SortedSet
 
-from ..utils.tools import connect_router, get_router, get_source_ip, register_socks_in_poll, zpipe
+from ..utils.tools import connect_router, get_router, get_source_ip, register_socks, zpipe
 
 
 class ScrapChordClient:
@@ -33,7 +33,7 @@ class ScrapChordClient:
         self.logger.info(f"Running on {self.address[0]}:{self.address[1]}")
        
         poller = zmq.Poller()
-        register_socks_in_poll(poller, self.usr_send_pipe[0], sys.stdin.fileno())
+        register_socks(poller, self.usr_send_pipe[0], sys.stdin.fileno())
         while True:
             socks = dict(poller.poll())
             if self.usr_send_pipe[0] in socks:
@@ -50,7 +50,7 @@ class ScrapChordClient:
         recv_sock.bind(f"tcp://{self.address[0]}:{self.address[1]}")
 
         poller = zmq.Poller()
-        register_socks_in_poll(
+        register_socks(
             poller, recv_sock, self.recv_send_pipe[1], self.usr_send_pipe[1]
         )
         while True:

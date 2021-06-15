@@ -1,12 +1,13 @@
 import sys
 import time
+import logging
 from random import randint
 from threading import Lock, Thread
 from sortedcontainers import SortedSet
 
 import zmq.sugar as zmq
 
-from utils import FunctionCall, finger_table_to_str, in_between
+from .utils import FunctionCall, finger_table_to_str, in_between
 
 
 class DataStorage:
@@ -59,6 +60,7 @@ class DataStorage:
             Specified if upper bound is inclusive
 
         Returns
+        import logging
         -------
         A list of key-value pairs (list could be empty)
         """
@@ -139,7 +141,7 @@ class ChordNode:
         self.node_id = idx
         self.finger = [None for i in range(m + 1)]
         self.successor_list = SortedSet(
-            [(self.node_id, self.address)],
+            [],
             key=lambda n: n[0] - self.node_id
             if n[0] >= self.node_id
             else 2 ** self.bits - self.node_id + n[0],
@@ -148,6 +150,9 @@ class ChordNode:
         self.pred_replica = DataStorage(self.bits)
 
         self.succ_list_lock = Lock()
+        
+        logging.basicConfig(format = "chordnode: %(levelname)s: %(message)s", level=logging.INFO)
+        self.logger = logging.getLogger("chordnode")
 
     def rpc(self, node, funct_name, params=None, timeout=4000):
         """Remote Procedure Call between Chord's nodes. This method enables the
@@ -183,6 +188,8 @@ class ChordNode:
 
         request = self.context.socket(zmq.REQ)
         request.connect(f"tcp://{ip}:{port}")
+        self.logger.info(f"Sending RPC '{funct_name} {params}' to node {node_id}...")
+        
         request.send_pyobj(FunctionCall(funct_name, params))
 
         poller = zmq.Poller()
@@ -192,6 +199,7 @@ class ChordNode:
         if ready:
             ret = request.recv_pyobj()
         else:
+            self.logger.warning("Request for RPC timeout :(")
             ret = None
         request.close()
         return ret
@@ -384,6 +392,9 @@ class ChordNode:
             if new_keys is not None:
                 self.insert_keys_locally(new_keys)
 
+        self.logger.info(self.finger_table())
+        self.logger.info(self.storage._dict.keys())
+
     def notify(self, n):
         """
         Notify current node that his posible predecessor is node n
@@ -432,7 +443,6 @@ class ChordNode:
             self.insert_keys_locally(pred_keys)
         elif predecessor[0] != self.node_id:
             self.storage.pop_interval_keys(self.node_id, False, predecessor[0], True)
-        
 
     def fix_fingers(self):
         """
@@ -453,7 +463,7 @@ class ChordNode:
             next_succ = self.successor_list[-1]
             next_succ = self.rpc(next_succ, "successor")
 
-        if next_succ is not None:
+        if next_succ is not None and next_succ[0] != self.node_id:
             self.add_node(next_succ)
 
     def add_node(self, node):
@@ -489,7 +499,7 @@ class ChordNode:
                 time.sleep(1)
                 self.update_successor_list()
 
-        def upadate_data():
+        def update_data():
             while True:
                 time.sleep(2)
                 self.send_data_replica()
@@ -497,19 +507,17 @@ class ChordNode:
 
         Thread(target=stabilization, daemon=True).start()
         Thread(target=update_successor_list, daemon=True).start()
-        Thread(target=upadate_data, daemon=True).start()
+        Thread(target=update_data, daemon=True).start()
 
         while True:
-            print(self.finger_table())
-            print(self.storage._dict)
             fun = self.reply.recv_pyobj()
-            print(fun)
             try:
                 funct = getattr(self, fun.name)
                 ret = funct(*fun.params)
+                self.logger.info(f"Sending reply for {funct}...")
                 self.reply.send_pyobj(ret)
             except AttributeError:
-                pass
+                self.logger.warning(f"Request {funct} unknown")
 
 
 def main():
@@ -529,7 +537,3 @@ def main():
     else:
         n.join()
     n.run()
-
-
-if __name__ == "__main__":
-    main()
