@@ -1,7 +1,11 @@
 # Predefined Ports:
 CHORD_PORT = 8000
 SCRAP_PORT = 8001
-BEACON_PORT = 8010
+CHORD_BEACON_PORT = 8010
+SCRAP_BEACON_PORT = 8011
+
+CODE_WORD_CHORD = b"chord"
+CODE_WORD_SCRAPPER = b"scrapper"
 
 # FLAGS!
 # Stablish initial communications between chord node and scrapper
