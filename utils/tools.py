@@ -1,8 +1,12 @@
+from hashlib import sha1
+from operator import truediv
+from sortedcontainers.sortedset import SortedSet
 import zmq.sugar as zmq
 import time
 import socket
-from typing import List, Tuple, Union
-from ..utils.const import BEACON_PORT
+from typing import List, NoReturn, Tuple, Union
+
+from zmq.sugar.frame import Message
 
 def get_source_ip():
     import subprocess
@@ -23,42 +27,41 @@ def zpipe(ctx):
     b.connect(iface)
     return a, b
 
-BEACON_PORT = 8001
-def net_beacon(ip, id_bits):
+def net_beacon(node_port:int, beacon_port:int, code_word:str) -> NoReturn:
+    code_byte = code_word.encode()
+    port_byte = str(node_port).encode()
     beacon_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     beacon_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    beacon_socket.bind(("", BEACON_PORT))
+    beacon_socket.bind(("", beacon_port))
     while True:
         info, addr = beacon_socket.recvfrom(1024)
-        if addr[0] == ip:
-            continue
-        if info.startswith(b"PING"):
-            _, bits = info.split(b'@')
-            bits = int.from_bytes(bits, "big")
-            if bits == id_bits:
-                beacon_socket.sendto("PONG".encode(), addr)
+        if info == b"ping" + code_byte:
+            beacon_socket.sendto(b"pong" + code_byte + b"@" + port_byte, addr)
 
-def find_nodes(id_bits) -> str:
-    print("Searching for on-line nodes ...")
+def find_nodes(port:int, code_word:str, tolerance:int = 3, all:bool = False) -> List[Tuple[str, int]]:
+    code_byte = code_word.encode()
     broadcast_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     broadcast_socket.settimeout(0.5)
-    tolerance = 3
+    nodes = []
     while tolerance > 0:
         broadcast_socket.sendto(
-            b"PING@" + int.to_bytes(id_bits, 8, "big"),
-            ("<broadcast>", BEACON_PORT)
+            b"ping" + code_byte,
+            ("<broadcast>", port)
         )
         try:
-            info, addr = broadcast_socket.recvfrom(1024)
-            if info == b"PONG":
-                print(f"Found on-line peer: {addr[0]}:{BEACON_PORT - 1}")
-                broadcast_socket.close()
-                return addr[0]
+            while True:
+                info, addr = broadcast_socket.recvfrom(1024)
+                if info.startswith(b"pong" + code_byte):
+                    tolerance = 0
+                    node_port = int(info.split(b'@')[1].decode())
+                    nodes.append(addr[0], node_port)
+                    if not all:
+                        break
         except socket.timeout:
             tolerance -= 1
     broadcast_socket.close()
-    return ""
+    return nodes
 
 def recieve_multipart_timeout(sock, timeout_sec):
     start = time.time()
@@ -114,3 +117,7 @@ def parse_address(address) -> Tuple[str, int]:
 
     ip_addr, ip_port = address.split(":")
     return ip_addr, int(ip_port)
+
+def get_id(addr):
+    hexhash = sha1(addr).hexdigest()
+    return int(hexhash, 16)
