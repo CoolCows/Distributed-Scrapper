@@ -5,13 +5,14 @@ import re
 import sys
 import random
 from threading import Thread
+from typing import Tuple
 from sortedcontainers.sortedset import SortedSet
 
 from zmq.sugar import poll
-from utils.tools import connect_router, find_nodes, get_id, get_router, recieve_multipart_timeout, recv_from_router, register_socks, zpipe
+from utils.tools import connect_router, find_nodes, get_id, get_router, net_beacon, recieve_multipart_timeout, recv_from_router, register_socks, zpipe
 import zmq.sugar as zmq
 import socket
-from ..utils.const import BEACON_PORT, CODE_WORD_SCRAPPER, REP_SCRAP_ACK_CONN, REP_SCRAP_ASOC_YES, REQ_SCRAP_ACK, REQ_SCRAP_ASOC, SCRAP_BEACON_PORT, SCRAP_CHORD_BEACON_PORT
+from ..utils.const import BEACON_PORT, CHORD_BEACON_PORT, CODE_WORD_CHORD, CODE_WORD_SCRAP, REP_CLIENT_INFO, REP_CLIENT_NODE, REP_SCRAP_ACK_CONN, REP_SCRAP_ASOC_YES, REQ_SCRAP_ACK, REQ_SCRAP_ASOC, SCRAP_BEACON_PORT, SCRAP_CHORD_BEACON_PORT
 from ..pychord import ChordNode
 
 
@@ -19,25 +20,34 @@ class ScrapChordNode(ChordNode):
     def __init__(self, m, ip, port, visible=True) -> None:
         super().__init__(m, ip, port)
         self.online = False
+        self.visible = visible
         self.cache = dict()
         self.scraper_list = []
 
         self.chord_push_pipe = zpipe(self.context)
         self.chord_scrap_pipe = zpipe(self.context)
         
-        logging.basicConfig(format = "scrapper: %(levelname)s: %(message)s", level=logging.INFO)
-        self.logger = logging.getLogger("scrapper")
+        logging.basicConfig(format = "scrapkord: %(levelname)s: %(message)s", level=logging.INFO)
+        self.logger = logging.getLogger("scrapkord")
 
     def run(self):
         self.start_chord_functionality()
 
-        comm_client = Thread(target=self.communicate_with_client)
+        # comm_client = Thread(target=self.communicate_with_client)
         comm_scrap = Thread(target=self.communicate_with_scraper)
         push_pull = Thread(target=self.push_pull_work)
-
-        comm_client.start()
+        
+        # comm_client.start()
         comm_scrap.start()
         push_pull.start()
+
+        if self.visible:
+            Thread(
+                target=net_beacon,
+                args=(self.address[1], CHORD_BEACON_PORT, CODE_WORD_CHORD),
+                daemon=True
+            )
+        self.communicate_with_client()
 
     def communicate_with_client(self):
         comm_sock = get_router(self.context)
@@ -45,7 +55,7 @@ class ScrapChordNode(ChordNode):
 
         router_table = dict()
         request_table = dict()
-        addr_byte = pickle.dumps(self.address)
+        # addr_byte = pickle.dumps(self.address)
 
         poller = zmq.Poller()
         register_socks(poller, self.chord_push_pipe[0], comm_sock)
@@ -56,17 +66,23 @@ class ScrapChordNode(ChordNode):
 
                 idx, message = req
                 url_request, client_addr = pickle.loads(message)
-                self.register_request(url_request, client_addr, request_table)
-                router_table[client_addr] = idx
-                self.chord_push_pipe[0].send_pyobj(url_request)
-                self.chord_scrap_pipe[0].send_multipart([REQ_SCRAP_ASOC])
+                url_node_addr = self.url_succesor(url_request)
+
+                if self.address == url_node_addr:
+                    self.register_request(url_request, client_addr, request_table)
+                    router_table[client_addr] = idx
+                    self.chord_push_pipe[0].send_pyobj(url_request)
+                    self.chord_scrap_pipe[0].send_multipart([REQ_SCRAP_ASOC])
+                else:
+                    node_addr_byte = pickle.dumps(url_node_addr)
+                    comm_sock.send_multipart([idx, REP_CLIENT_NODE, node_addr_byte])
             
             elif self.chord_push_pipe[0] in socks:
                 url, html, url_list = self.chord_push_pipe[0].recv_pyobj()
                 for addr in request_table[url]:
                     idx = router_table[addr]
                     message = pickle.dumps((url, html, url_list))
-                    comm_sock.send_multipart([idx, addr_byte, message])
+                    comm_sock.send_multipart([idx, REP_CLIENT_INFO, message])
                 del request_table[url]
             
             else:
@@ -74,14 +90,16 @@ class ScrapChordNode(ChordNode):
                     self.chord_push_pipe[0].send_pyobj(url_request)
                     self.chord_scrap_pipe[0].send_multipart([REQ_SCRAP_ASOC])
     
-    def handle_request(self, url:str):
+    def url_succesor(self, url:str) -> Tuple[str, int]:
         url_id = get_id(url)
         n = self.find_successor(url_id)
-        _, addr = n
+        return n[1]
+        
                 
     def communicate_with_scraper(self):
         comm_sock = get_router(self.context)
         pending_messages = []
+        connected_to = []
 
         while self.online:
             if len(pending_messages) == 0:
@@ -91,15 +109,21 @@ class ScrapChordNode(ChordNode):
             if len(req) > 0:
                 flag = req[0]
                 while len(self.scraper_list) > 0:
-                    x = random.randint(0, len(self.scraper_list) - 1)
+                    if len(connected_to) == 0:
+                        x = random.randint(0, len(self.scraper_list) - 1)
+                    else:
+                        x = connected_to.pop(-1)
+                    
                     addr = self.scraper_list[x]
                     info = pickle.dumps(self.address)
+                    connect_router(comm_sock, addr)
                     comm_sock.send_multipart([addr.encode(), flag,  info])
                     rep, _ = recv_from_router(comm_sock, addr)
                     if len(rep) == 0:
                         self.scraper_list.pop(x)
                         continue
                     if rep == REP_SCRAP_ASOC_YES:
+                        connected_to.append(x)
                         break
                 else:
                     pending_messages.append(req)
@@ -111,7 +135,7 @@ class ScrapChordNode(ChordNode):
     def get_online_scrappers(self):
         scrap_addrs = find_nodes(
             port=SCRAP_BEACON_PORT,
-            code_word=CODE_WORD_SCRAPPER,
+            code_word=CODE_WORD_SCRAP,
             tolerance=3,
             all=True
         )

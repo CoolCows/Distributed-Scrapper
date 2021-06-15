@@ -6,7 +6,7 @@ import pickle
 from hashlib import blake2b, sha1
 from threading import Lock, Thread
 from typing import Tuple
-from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, HASH_SEED
+from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, HASH_SEED, REP_CLIENT_INFO, REP_CLIENT_NODE
 
 import zmq.sugar as zmq
 from sortedcontainers import SortedSet
@@ -47,6 +47,7 @@ class ScrapChordClient:
         
         poller = zmq.Poller()
         register_socks(poller, self.usr_send_pipe[0], sys.stdin)
+        self.logger.info("Input ready:")
         while self.online:
             socks = dict(poller.poll())
             if self.usr_send_pipe[0] in socks:
@@ -66,16 +67,20 @@ class ScrapChordClient:
             poller, self.recv_send_pipe[1], self.usr_send_pipe[1]
         )
         while True:
-            socks = dict(poller.poll(1500))
+            socks = dict(poller.poll(1000))
             if self.usr_send_pipe[1] in socks:
                 url_list:Tuple = self.recv_send_pipe[1].recv_pyobj()
             elif comm_sock in socks:
-                _, node_addr_bytes, message = comm_sock.recv_multipart()
-                self.add_node(known_nodes, pickle.loads(node_addr_bytes))
-                url, html, url_list = pickle.loads(message)
-                self.recv_cache[url] = html
-                self.usr_send_pipe[1].send_pyobj((url, html)) # Send recieved url and html to main thread for display
-                pending_recv.remove(url)
+                _, flag, message = comm_sock.recv_multipart()
+                if flag == REP_CLIENT_NODE:
+                    self.add_node(known_nodes, pickle.loads(message))
+                    url_list = pending_recv
+                if flag == REP_CLIENT_INFO:
+                    url, html, url_list = pickle.loads(message)
+                    self.recv_cache[url] = html
+                    self.usr_send_pipe[1].send_pyobj((url, html)) # Send recieved url and html to main thread for display
+                    pending_recv.remove(url)
+                    url_list = []
             else:
                 url_list = pending_recv
 
