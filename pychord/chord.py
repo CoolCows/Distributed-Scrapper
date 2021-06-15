@@ -1,3 +1,4 @@
+from hashlib import sha1
 import sys
 import time
 import logging
@@ -131,14 +132,14 @@ class DataStorage:
         return keys
 
 class ChordNode:
-    def __init__(self, idx, m, ip, port) -> None:
+    def __init__(self, m, ip, port) -> None:
         self.address = (ip, port)
         self.context = zmq.Context()
         self.reply = self.context.socket(zmq.REP)
         self.reply.bind("tcp://*:%s" % port)
 
         self.bits = m
-        self.node_id = idx
+        self.node_id = sha1(f"{ip}:{port}")
         self.finger = [None for i in range(m + 1)]
         self.successor_list = SortedSet(
             [],

@@ -16,8 +16,8 @@ from ..pychord import ChordNode
 
 
 class ScrapChordNode(ChordNode):
-    def __init__(self, idx, m, ip, port, visible=True) -> None:
-        super().__init__(idx, m, ip, port)
+    def __init__(self, m, ip, port, visible=True) -> None:
+        super().__init__(m, ip, port)
         self.online = False
         self.cache = dict()
         self.scraper_list = []
@@ -77,7 +77,7 @@ class ScrapChordNode(ChordNode):
     def handle_request(self, url:str):
         url_id = get_id(url)
         n = self.find_successor(url_id)
-        
+        _, addr = n
                 
     def communicate_with_scraper(self):
         comm_sock = get_router(self.context)
