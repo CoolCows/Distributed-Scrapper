@@ -139,8 +139,8 @@ class ChordNode:
         self.reply.bind("tcp://*:%s" % port)
 
         self.bits = m
-        self.node_id = sha1(f"{ip}:{port}")
-        self.finger = [None for i in range(m + 1)]
+        self.node_id = sha1(f"{ip}:{port}") % 2**self.bits
+        self.finger = [None for _ in range(m + 1)]
         self.successor_list = SortedSet(
             [],
             key=lambda n: n[0] - self.node_id
