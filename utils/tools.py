@@ -118,6 +118,6 @@ def parse_address(address) -> Tuple[str, int]:
     ip_addr, ip_port = address.split(":")
     return ip_addr, int(ip_port)
 
-def get_id(addr):
-    hexhash = sha1(addr).hexdigest()
+def get_id(addr:str) -> int:
+    hexhash = sha1(addr.encode()).hexdigest()
     return int(hexhash, 16)
