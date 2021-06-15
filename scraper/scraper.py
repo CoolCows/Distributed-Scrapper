@@ -95,8 +95,8 @@ class Scrapper:
         ip, port = addr
         pull_sock = self.ctx.socket(zmq.PULL)
         push_sock = self.ctx.socket(zmq.PUSH)
-        pull_sock.connect(f"tcp://{ip}:{port + 1}")
-        push_sock.connect(f"tcp://{ip}:{port + 2}")
+        pull_sock.connect(f"tcp://{ip}:{port + 2}")
+        push_sock.connect(f"tcp://{ip}:{port + 3}")
 
         iddle = 0
         while iddle < MAX_IDDLE: 

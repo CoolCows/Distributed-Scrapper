@@ -27,7 +27,7 @@ class ScrapChordClient:
 
         # debbug & info
         logging.basicConfig(format = "client: %(levelname)s: %(message)s", level=logging.INFO)
-        self.logger = logging.getLogger("scrapper")
+        self.logger = logging.getLogger("client")
 
     def run(self, address:str = ""):
         self.logger.info(f"Running on {self.address[0]}:{self.address[1]}")

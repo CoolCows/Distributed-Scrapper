@@ -44,14 +44,14 @@ class ScrapChordNode(ChordNode):
         if self.visible:
             Thread(
                 target=net_beacon,
-                args=(self.address[1], CHORD_BEACON_PORT, CODE_WORD_CHORD),
+                args=(self.address[1] + 1, CHORD_BEACON_PORT, CODE_WORD_CHORD),
                 daemon=True
             )
         self.communicate_with_client()
 
     def communicate_with_client(self):
         comm_sock = get_router(self.context)
-        comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1]}")
+        comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 1}")
 
         router_table = dict()
         request_table = dict()
@@ -147,8 +147,8 @@ class ScrapChordNode(ChordNode):
     def push_pull_work(self):
         push_sock = self.context.socket(zmq.PUSH)
         pull_sock = self.context.socket(zmq.PULL)
-        push_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 1}")
         push_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 2}")
+        push_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 3}")
         
         poller = zmq.Poller()
         register_socks(poller, pull_sock, self.chord_push_pipe[1])
