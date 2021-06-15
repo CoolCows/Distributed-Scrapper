@@ -17,8 +17,8 @@ from pychord import ChordNode
 
 
 class ScrapChordNode(ChordNode):
-    def __init__(self, m, ip, port, visible=True) -> None:
-        super().__init__(m, ip, port)
+    def __init__(self, m, port, visible=True) -> None:
+        super().__init__(m, port)
         self.online = False
         self.visible = visible
         self.cache = dict()
