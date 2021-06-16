@@ -29,7 +29,7 @@ class Scraper:
         self.lock = Lock()
 
         # debbug & info
-        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.INFO)
+        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG)
         self.logger = logging.getLogger("scraper")
 
     def run(self):
@@ -37,12 +37,12 @@ class Scraper:
         self.online = True
 
         if self.visible:
-            if self.visible:
-                Thread(
-                    target=net_beacon,
-                    args=(self.address[1], SCRAP_BEACON_PORT, CODE_WORD_SCRAP),
-                    daemon=True
-                )
+            self.logger.debug("Scraper visble")
+            Thread(
+                target=net_beacon,
+                args=(self.address[1], SCRAP_BEACON_PORT, CODE_WORD_SCRAP),
+                daemon=True
+            ).start()
 
         while self.online:
             # In case __communication_loop stops unexpectedly, it starts again
@@ -64,13 +64,15 @@ class Scraper:
             request = recieve_multipart_timeout(comm_sock, TIMEOUT_COMM)
             if len(request) == 0:
                 continue
-
+            
+            self.logger.debug(f"recieved request")
             sock_id, flag, info = request
             if flag == REQ_SCRAP_ASOC:
-                sock_addr = pickle.load(info)
+                sock_addr = pickle.loads(info)
                 self.__update_workers()
                 if self.num_threads < self.max_threads:
                     self.__create_worker(sock_addr)
+                    self.logger.debug("Replying yes")
                     comm_sock.send_multipart([sock_id, REP_SCRAP_ASOC_YES])
                 else:
                     comm_sock.send_multipart([sock_id, REP_SCRAP_ASOC_NO])
@@ -85,6 +87,7 @@ class Scraper:
         comm_sock.close()
              
     def __create_worker(self, addr:Tuple):
+        self.logger.debug("Creating worker")
         index = self.worker_threads.index(None)
         t = Thread(target=self.__work_loop, args=(addr, index))
         self.worker_threads[index] = (addr, t)
@@ -95,23 +98,22 @@ class Scraper:
         ip, port = addr
         pull_sock = self.ctx.socket(zmq.PULL)
         push_sock = self.ctx.socket(zmq.PUSH)
+        self.logger.debug(f"WorkerThread({thread_id}): connecting to {ip}: {port + 2}, {port + 3}")
         pull_sock.connect(f"tcp://{ip}:{port + 2}")
         push_sock.connect(f"tcp://{ip}:{port + 3}")
 
-        iddle = 0
-        while iddle < MAX_IDDLE: 
-            work = recieve_multipart_timeout(pull_sock, TIMEOUT_WORK)
-            if len(work) == 0:
-                iddle += 1
-                continue
-            iddle = 0
-            info = work[0]
-            url = info.decode()
-
+        pull_sock.rcvtimeo = (TIMEOUT_WORK * MAX_IDDLE) * 1000
+        while True: 
+            try:
+                self.logger.debug(f"WorkerThread({thread_id}): waiting for work")
+                url = pull_sock.recv_pyobj()
+            except zmq.error.Again:
+                break
+            self.logger.debug(f"WorkerThread({thread_id}): working ...")
             html, urls = self.__extract_html(url)
             push_sock.send_pyobj((url, html, urls))
         
-        self.logger.debug(f"Worker thread({thread_id}) closing.")
+        self.logger.debug(f"WorkerThread({thread_id}): closing.")
         pull_sock.close()
         push_sock.close()
 
@@ -128,6 +130,6 @@ class Scraper:
         return reqs.text, urls
         
     def __update_workers(self):
-        self.worker_threads = [None for thread in self.worker_threads if thread is None or not thread[1].is_alive()]
+        self.worker_threads = [None if thread is None or not thread[1].is_alive() else thread for thread in self.worker_threads]
         self.num_threads = len([thread for thread in self.worker_threads if thread is not None])
 
