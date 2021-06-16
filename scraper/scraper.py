@@ -2,7 +2,6 @@ import logging
 import pickle
 from typing import Tuple
 import requests
-import socket
 import zmq.sugar as zmq
 from bs4 import BeautifulSoup
 from threading import Lock, Thread

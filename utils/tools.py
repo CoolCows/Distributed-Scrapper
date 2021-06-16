@@ -1,5 +1,4 @@
 from hashlib import sha1
-from operator import truediv
 from sortedcontainers.sortedset import SortedSet
 import zmq.sugar as zmq
 import time

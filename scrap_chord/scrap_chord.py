@@ -1,17 +1,12 @@
-from itertools import combinations_with_replacement
 import logging
 import pickle
-import re
-import sys
 import random
 from threading import Thread
 from typing import Tuple
 from sortedcontainers.sortedset import SortedSet
 
-from zmq.sugar import poll
 from utils.tools import connect_router, find_nodes, get_id, get_router, net_beacon, recieve_multipart_timeout, recv_from_router, register_socks, zpipe
 import zmq.sugar as zmq
-import socket
 from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, CODE_WORD_SCRAP, REP_CLIENT_INFO, REP_CLIENT_NODE, REP_SCRAP_ACK_CONN, REP_SCRAP_ASOC_YES, REQ_SCRAP_ACK, REQ_SCRAP_ASOC, SCRAP_BEACON_PORT
 from pychord import ChordNode
 
