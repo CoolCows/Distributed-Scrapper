@@ -11,7 +11,7 @@ from utils.tools import get_router, net_beacon, zpipe, recieve_multipart_timeout
 from utils.const import CODE_WORD_SCRAP, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_BEACON_PORT, SCRAP_PORT, REQ_SCRAP_ASOC, REP_SCRAP_ASOC_YES, REP_SCRAP_ASOC_NO
 
 
-class Scrapper:
+class Scraper:
     def __init__(self, port, max_threads:int, visible:bool = False) -> None:
         self.online = False
         self.visible = visible
