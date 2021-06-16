@@ -1,9 +1,9 @@
 import logging
-import time
+from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM
 from scrap_chord.util import in_between
 import sys
 import pickle
-from threading import Lock, Thread
+from threading import  Thread
 from typing import Tuple
 from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, REP_CLIENT_INFO, REP_CLIENT_NODE
 
@@ -51,8 +51,8 @@ class ScrapChordClient:
         while self.online:
             socks = dict(poller.poll())
             if self.usr_send_pipe[0] in socks:
-                url, html = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                self.logger.info(f"Recieved {url}\n {html[:100]} \n ...") # Print url and first 100 chars from html
+                url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
+                self.logger.info(f"Recieved {url}\n {html[:100]} \n ... \n URLS:\n" + "\n".join(str(urlx) for urlx in url_list)) # Print url and first 100 chars from html
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
                     self.logger.debug(f"Sending to pyobj: {line.split()}")
@@ -69,7 +69,7 @@ class ScrapChordClient:
             poller, comm_sock, self.usr_send_pipe[1]
         )
         while True:
-            socks = dict(poller.poll(1500))
+            socks = dict(poller.poll(TIMEOUT_COMM*MAX_IDDLE*500))
             if self.usr_send_pipe[1] in socks:
                 url_list:Tuple = self.usr_send_pipe[1].recv_pyobj()
                 self.logger.debug(f"Recieving usr request: {url_list}")
@@ -77,12 +77,14 @@ class ScrapChordClient:
                 _, flag, message = comm_sock.recv_multipart()
                 self.logger.debug(f"Recieving reply to request: {flag}")
                 if flag == REP_CLIENT_NODE:
-                    self.add_node(known_nodes, pickle.loads(message))
+                    next_node = pickle.loads(message)
+                    self.add_node(known_nodes, next_node)
                     url_list = pending_recv
                 if flag == REP_CLIENT_INFO:
                     url, html, url_list = pickle.loads(message)
-                    self.recv_cache[url] = html
-                    self.usr_send_pipe[1].send_pyobj((url, html)) # Send recieved url and html to main thread for display
+                    self.recv_cache[url] = (html, url_list)
+                    self.logger.debug("Forwarding html for display")
+                    self.usr_send_pipe[1].send_pyobj((url, html, url_list)) # Send recieved url and html to main thread for display
                     pending_recv.remove(url)
                     url_list = []
             else:
@@ -90,6 +92,7 @@ class ScrapChordClient:
 
             for url in url_list:
                 if url in self.recv_cache:
+                    self.usr_send_pipe[1].send_pyobj((url, *self.recv_cache[url]))
                     continue
                 pending_recv.add(url)
                 target_addr = self.select_target_node(url, known_nodes)
