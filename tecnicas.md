@@ -11,4 +11,6 @@
 
 ## Falta
 
-* Actualizar qur todos los router inicine con metodo nuevo
+* Depurar intensamente el programa, respecto a comunicaciones y eso
+* Agregar el scrapeo en profundidad, chequear que el scraping funcione en talla
+* Una interfaz visual medio boba puede ayudar
