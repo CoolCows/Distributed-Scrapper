@@ -26,5 +26,10 @@ def main(node_type, args):
 
 
 if __name__ == "__main__":
-    node_type, *args = sys.argv[1:]
+    try:
+        node_type, *args = sys.argv[1:]
+    except ValueError:
+        print("DEBUGING")
+        node_type = "sc"
+        args = ["7050", "5"]#, "127.0.1.1:7050"]
     main(node_type, args)

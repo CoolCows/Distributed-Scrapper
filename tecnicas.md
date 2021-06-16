@@ -13,4 +13,5 @@
 
 * Depurar intensamente el programa, respecto a comunicaciones y eso
 * Agregar el scrapeo en profundidad, chequear que el scraping funcione en talla
+* Replicacion entre nodos
 * Una interfaz visual medio boba puede ayudar
