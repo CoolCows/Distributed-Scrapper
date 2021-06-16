@@ -22,5 +22,5 @@ REQ_SCRAP_ACK = b"req_scrap_ack"
 REP_SCRAP_ACK_CONN = b"rep_scrap_ack_conn"
 REP_SCRAP_ACK_NO_CONN = b"rep_scrap_ack_no_conn"
 
-REP_CLIENT_INFO = b"client_url"
+REP_CLIENT_INFO = b"client_info"
 REP_CLIENT_NODE = b"client_node"

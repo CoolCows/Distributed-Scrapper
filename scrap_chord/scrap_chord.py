@@ -81,12 +81,14 @@ class ScrapChordNode(ChordNode):
                     comm_sock.send_multipart([idx, REP_CLIENT_NODE, node_addr_byte])
             
             elif self.chord_scrap_pipe[0] in socks:
+                self.logger.debug("CliCom: Recieved work givin to client")
                 url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj()
                 for addr in request_table[url]:
                     idx = router_table[addr]
                     message = pickle.dumps((url, html, url_list))
                     comm_sock.send_multipart([idx, REP_CLIENT_INFO, message])
                 del request_table[url]
+        self.logger.debug("CliCom: Ended")
     
     def url_succesor(self, url:str) -> Tuple[str, int]:
         url_id = get_id(url)
