@@ -2,6 +2,7 @@ import logging
 import pickle
 from typing import Tuple
 import requests
+from requests.exceptions import RequestException, MissingSchema 
 import zmq.sugar as zmq
 from bs4 import BeautifulSoup
 from threading import Lock, Thread
@@ -112,14 +113,20 @@ class Scraper:
             self.logger.debug(f"WorkerThread({thread_id}): working ...")
             html, urls = self.__extract_html(url)
             push_sock.send_pyobj((url, html, urls))
+            self.logger.debug(f"WorkerThread({thread_id}): pushed work")
         
         self.logger.debug(f"WorkerThread({thread_id}): closing.")
         pull_sock.close()
         push_sock.close()
 
     def __extract_html(self, url):
-        self.logger.debug(f"Extracting html from {url}")
-        reqs = requests.get(url)
+        try:
+            reqs = requests.get(url)
+        except RequestException as exception:
+            if isinstance(exception, MissingSchema):
+                return self.__extract_html("http://" + url)
+            return "Bad Request", set()
+
         soup = BeautifulSoup(reqs.text, "html.parser")
 
         urls = set()
