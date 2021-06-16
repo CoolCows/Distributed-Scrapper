@@ -485,24 +485,11 @@ class ChordNode:
         self.succ_list_lock.release()
         return n
 
-    def run(self):
+    def start_chord_base_routine(self):
         """
         Main routine of chord node
         """
 
-        self.start_chord_functionality()
-
-        while True:
-            fun = self.reply.recv_pyobj()
-            try:
-                funct = getattr(self, fun.name)
-                ret = funct(*fun.params)
-                self.logger.info(f"Sending reply for {funct}...")
-                self.reply.send_pyobj(ret)
-            except AttributeError:
-                self.logger.warning(f"Request {funct} unknown")
-
-    def start_chord_functionality(self):
         def stabilization():
             while True:
                 time.sleep(1)
@@ -523,6 +510,16 @@ class ChordNode:
         Thread(target=stabilization, daemon=True).start()
         Thread(target=update_successor_list, daemon=True).start()
         Thread(target=update_data, daemon=True).start()
+
+        while True:
+            fun = self.reply.recv_pyobj()
+            try:
+                funct = getattr(self, fun.name)
+                ret = funct(*fun.params)
+                self.logger.info(f"Sending reply for {funct}...")
+                self.reply.send_pyobj(ret)
+            except AttributeError:
+                self.logger.warning(f"Request {funct} unknown")
 
 
 def main():

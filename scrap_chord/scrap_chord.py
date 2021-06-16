@@ -6,9 +6,8 @@ from threading import Lock, Thread
 import time
 from typing import Tuple
 from sortedcontainers.sortedset import SortedSet
-from zmq.sugar.poll import Poller
 
-from utils.tools import address_to_string, connect_router, find_nodes, get_id, get_router, net_beacon, recieve_multipart_timeout, recv_from_router, register_socks, zpipe
+from utils.tools import address_to_string, connect_router, find_nodes, get_id, get_router, net_beacon, parse_address, recieve_multipart_timeout, recv_from_router, register_socks, zpipe
 import zmq.sugar as zmq
 from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, CODE_WORD_SCRAP, REP_CLIENT_INFO, REP_CLIENT_NODE, REP_SCRAP_ACK_CONN, REP_SCRAP_ASOC_YES, REQ_SCRAP_ACK, REQ_SCRAP_ASOC, SCRAP_BEACON_PORT
 from pychord import ChordNode
@@ -31,15 +30,33 @@ class ScrapChordNode(ChordNode):
         logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG)
         self.logger = logging.getLogger("scrapkord")
 
-    def run(self):
+    def run(self, addr:str=""):
         self.online = True
         self.logger.info(f"ScrapKord running on {self.address[0]}:{self.address[1]}")
-        self.start_chord_functionality()
+        
+        if addr != "":
+            self.join(get_id(addr), parse_address(addr))
+        else:
+            net_nodes = find_nodes(
+                port=CHORD_BEACON_PORT,
+                code_word=CODE_WORD_CHORD,
+                tolerance=3,
+                all=True
+            )
+            if len(net_nodes) > 0:
+                for node_addr in net_nodes:
+                    self.add_node((get_id(address_to_string(node_addr)), node_addr))
+                    succ_node = self.pop_node(0)
+                    self.join(succ_node[0], succ_node[1])
+            else:
+                self.join()
 
+        base_routine = Thread(target=self.start_chord_base_routine)
         comm_client = Thread(target=self.communicate_with_client)
         # comm_scrap = Thread(target=self.communicate_with_scraper)
         push_pull = Thread(target=self.push_pull_work)
         
+        base_routine.start()
         comm_client.start()
         # comm_scrap.start()
         push_pull.start()
