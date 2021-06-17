@@ -109,7 +109,7 @@ class Scraper:
             except zmq.error.Again:
                 break
             self.logger.debug(f"WorkerThread({thread_id}): working ...")
-            html, urls = extract_html(url)
+            html, urls = extract_html(url, self.logger)
             push_sock.send_pyobj((url, html, urls))
             self.logger.debug(f"WorkerThread({thread_id}): pushed work")
         
