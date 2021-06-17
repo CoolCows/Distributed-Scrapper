@@ -62,7 +62,6 @@ class DataStorage:
             Specified if upper bound is inclusive
 
         Returns
-        import logging
         -------
         A list of key-value pairs (list could be empty)
         """
@@ -394,8 +393,8 @@ class ChordNode:
             if new_keys is not None:
                 self.insert_keys_locally(new_keys)
 
-        # self.logger.debug(self.finger_table())
-        # self.logger.debug(self.storage._dict.keys())
+        self.logger.debug(self.finger_table())
+        self.logger.debug(self.storage._dict.keys())
 
     def notify(self, n):
         """
