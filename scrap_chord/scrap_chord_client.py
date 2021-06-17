@@ -41,7 +41,7 @@ class ScrapChordClient:
                 return
         else:
             address = parse_address(address)
-            address = (address[0], address[1] + 1)
+            address = (address[0], address[1])
             self.add_node(known_nodes, address)
         
         t = Thread(target=self.communicate_with_chord, args=(known_nodes,), daemon=True)
@@ -135,12 +135,14 @@ class ScrapChordClient:
         if len(known_nodes) == 0:
             raise Exception("There are no known nodes")
         if len(known_nodes) == 1:
-            return known_nodes[0][1]
+            return (known_nodes[0][1][0], known_nodes[0][1][1] + 1)
         url_id = get_id(url) % (2 ** self.bits)
+        self.logger.debug(f"Selecting target of {url_id} from {known_nodes}")
         lwb_id, _ = known_nodes[-1]
         for node_id, addr in known_nodes:
             if in_between(self.bits, url_id, lwb_id, node_id):
-                return addr
+                return (addr[0], addr[1] + 1)
+            lwb_id = node_id
         
         raise Exception("A node must be always found")
 
