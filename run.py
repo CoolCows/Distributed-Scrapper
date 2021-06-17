@@ -7,7 +7,7 @@ def main(node_type, args):
         port = int(args[0])
         m = int(args[1])
         visible = False if len(args) >= 3 and args[2] =="f" else True
-        sc = ScrapChordNode(port, m, visible)
+        sc = ScrapChordNode(port, m, visible=visible)
         sc.run()
     
     elif node_type in {"scraper", "scrapper", "s"}:

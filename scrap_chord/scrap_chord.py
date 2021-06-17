@@ -104,7 +104,7 @@ class ScrapChordNode(ChordNode):
                     idx = router_table[addr]
                     message = pickle.dumps((url, html, url_list))
                     comm_sock.send_multipart([idx, REP_CLIENT_INFO, message])
-                del request_table[url]
+                request_table[url] = set()
         self.logger.debug("CliCom: Ended")
     
     def url_succesor(self, url:str) -> Tuple[str, int]:

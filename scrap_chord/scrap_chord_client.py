@@ -1,6 +1,8 @@
 import logging
+
+from requests.api import request
 from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM
-from scrap_chord.util import in_between
+from scrap_chord.util import in_between, parse_requests
 import sys
 import pickle
 from threading import  Thread
@@ -56,12 +58,12 @@ class ScrapChordClient:
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
                     self.logger.debug(f"Sending to pyobj: {line.split()}")
-                    self.usr_send_pipe[0].send_pyobj(line.split())
-                    break
+                    self.usr_send_pipe[0].send_pyobj(parse_requests(line))
 
     def communicate_with_chord(self, known_nodes:SortedSet):
         comm_sock = get_router(self.context)
-        
+        search_tree = dict()
+
         connected = set()
         pending_recv = SortedSet()
         poller = zmq.Poller()
@@ -71,8 +73,11 @@ class ScrapChordClient:
         while True:
             socks = dict(poller.poll(TIMEOUT_COMM*MAX_IDDLE*500))
             if self.usr_send_pipe[1] in socks:
-                url_list:Tuple = self.usr_send_pipe[1].recv_pyobj()
-                self.logger.debug(f"Recieving usr request: {url_list}")
+                requests:Tuple = self.usr_send_pipe[1].recv_pyobj()
+                url_list = [url for url, _ in url_list]
+                for url, depth in requests:
+                    self.update_search_tree(url, depth, search_tree)
+            
             elif comm_sock in socks:
                 _, flag, message = comm_sock.recv_multipart()
                 self.logger.debug(f"Recieving reply to request: {flag}")
@@ -80,6 +85,7 @@ class ScrapChordClient:
                     next_node = pickle.loads(message)
                     self.add_node(known_nodes, next_node)
                     url_list = pending_recv
+                
                 if flag == REP_CLIENT_INFO:
                     url, html, url_list = pickle.loads(message)
                     self.recv_cache[url] = (html, url_list)
@@ -87,6 +93,7 @@ class ScrapChordClient:
                     self.usr_send_pipe[1].send_pyobj((url, html, url_list)) # Send recieved url and html to main thread for display
                     pending_recv.remove(url)
                     url_list = []
+            
             else:
                 url_list = pending_recv
 
@@ -94,6 +101,7 @@ class ScrapChordClient:
                 if url in self.recv_cache:
                     self.usr_send_pipe[1].send_pyobj((url, *self.recv_cache[url]))
                     continue
+                
                 pending_recv.add(url)
                 target_addr = self.select_target_node(url, known_nodes)
                 message = pickle.dumps((url, self.address))
@@ -102,6 +110,21 @@ class ScrapChordClient:
                     connect_router(comm_sock, target_addr)
                     connected.add(target_addr)#time.sleep(1000000)
                 comm_sock.send_multipart([address_to_string(target_addr).encode(), message])
+
+    def update_pending(self, url, url_list, pending_recv, search_tree):
+        remaining = search_tree[url] - 1
+        if remaining == 0:
+            return
+        for urlx in url_list:
+            search_tree[urlx] = remaining
+            pending_recv.add((urlx, remaining))
+
+    def update_search_tree(self, url, depth, search_tree):
+        try:
+            search_tree[url] = max(depth, search_tree[url])
+        except KeyError:
+            search_tree[url] = depth
+
 
     def select_target_node(self, url, known_nodes) -> str:
         if len(known_nodes) == 0:
