@@ -201,7 +201,7 @@ class ChordNode:
         if ready:
             ret = request.recv_pyobj()
         else:
-            self.logger.warning("Request for RPC timeout :(")
+            self.logger.warning(f"Request({funct_name}) for RPC timeout :(")
             ret = None
         request.close()
         return ret

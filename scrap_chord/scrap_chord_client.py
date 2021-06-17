@@ -59,6 +59,7 @@ class ScrapChordClient:
                 for line in sys.stdin:
                     self.logger.debug(f"Sending to pyobj: {line.split()}")
                     self.usr_send_pipe[0].send_pyobj(parse_requests(line))
+                    break
 
     def communicate_with_chord(self, known_nodes:SortedSet):
         comm_sock = get_router(self.context)

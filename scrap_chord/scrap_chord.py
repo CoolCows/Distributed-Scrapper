@@ -48,7 +48,7 @@ class ScrapChordNode(ChordNode):
                     self.add_node((get_id(address_to_string((node_addr[0], node_addr[1] - 1))) % (2**self.bits), (node_addr[0], node_addr[1] - 1)))
                     succ_node = self.pop_node(0)
                     self.join(succ_node[0], succ_node[1])
-                    self.logger.debug(f"joined to {succ_node}")
+                    self.logger.debug(f"Joined to {succ_node}")
             else:
                 self.logger.debug(f"Alone in the net")
                 self.join()
