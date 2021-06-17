@@ -150,6 +150,8 @@ class ScrapChordNode(ChordNode):
             elif self.push_scrap_pipe[1] in socks:
                 # rcv object
                 url, html, url_list = self.push_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
+                if url in self.cache:
+                    continue
                 self.logger.debug(f"ScrapCom: work done with {url}")
                 # remove from pending
                 pending_messages.remove(url)

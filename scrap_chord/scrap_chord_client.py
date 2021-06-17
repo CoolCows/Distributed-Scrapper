@@ -57,7 +57,7 @@ class ScrapChordClient:
                 self.logger.info(f"Recieved {url}\n {html[:100]} \n ... \n URLS({len(url_list)}):\n" + "\n".join(str(urlx) for urlx in url_list)) # Print url and first 100 chars from html
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
-                    client_request = parse_address(line)
+                    client_request = parse_requests(line)
                     if len(client_request) != 0:
                         self.logger.debug(f"Sending to pyobj: {client_request}")
                         self.usr_send_pipe[0].send_pyobj(client_request)
