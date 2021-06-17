@@ -30,4 +30,8 @@ def remove_back_slashes(url:str) -> str:
         index -= 1
     return url[:index + 1]
 
-
+def add_to_dict(pending_recv, url_request):
+    try:
+        pending_recv[url_request] += 1
+    except KeyError:
+        pending_recv[url_request] = 1
