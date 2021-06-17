@@ -12,6 +12,9 @@ def parse_requests(command:str):
     index = 0
     while index < len(args):
         arg_1 = str(args[index])
+        arg_1 = remove_back_slashes(arg_1)
+        if arg_1 == "":
+            continue
         try:
             arg_2 = int(args[index + 1])
             index += 1
@@ -20,3 +23,11 @@ def parse_requests(command:str):
         index += 1
         requests.append((arg_1, arg_2))
     return requests
+
+def remove_back_slashes(url:str) -> str:
+    index = len(url) - 1
+    while index >= 0 and url[index] == "/":
+        index -= 1
+    return url[:index + 1]
+
+

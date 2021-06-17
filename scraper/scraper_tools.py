@@ -34,6 +34,3 @@ def has_header(url):
     domain = urlparse(url).netloc
     return domain != ""
 
-# print(get_header('http://forums.bbc.co.uk'))
-
-
