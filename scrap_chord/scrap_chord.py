@@ -54,13 +54,13 @@ class ScrapChordNode(ChordNode):
                 self.join()
 
         base_routine = Thread(target=self.start_chord_base_routine)
-        comm_client = Thread(target=self.communicate_with_client)
-        # comm_scrap = Thread(target=self.communicate_with_scraper)
+        # comm_client = Thread(target=self.communicate_with_client)
+        comm_scrap = Thread(target=self.communicate_with_scraper)
         push_pull = Thread(target=self.push_pull_work)
         
         base_routine.start()
-        comm_client.start()
-        # comm_scrap.start()
+        # comm_client.start()
+        comm_scrap.start()
         push_pull.start()
 
         if self.visible:
@@ -71,8 +71,8 @@ class ScrapChordNode(ChordNode):
                 daemon=True
             ).start()
     
-        # self.communicate_with_client()
-        self.communicate_with_scraper()
+        self.communicate_with_client()
+        #self.communicate_with_scraper()
 
     def communicate_with_client(self):
         self.logger.debug(f"CliCom: Router binded to {self.address[0]}:{self.address[1] + 1}")
@@ -101,7 +101,7 @@ class ScrapChordNode(ChordNode):
                     comm_sock.send_multipart([idx, REP_CLIENT_NODE, node_addr_byte])
             
             elif self.chord_scrap_pipe[0] in socks:
-                self.logger.debug("CliCom: Recieved work givin to client")
+                self.logger.debug("CliCom: Recieved work forwarding it to client")
                 url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj()
                 for addr in request_table[url]:
                     idx = router_table[addr]

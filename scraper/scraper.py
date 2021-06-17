@@ -122,10 +122,10 @@ class Scraper:
     def __extract_html(self, url):
         try:
             reqs = requests.get(url)
-        except RequestException as exception:
+        except (RequestException, ValueError) as exception:
             if isinstance(exception, MissingSchema):
                 return self.__extract_html("http://" + url)
-            return "Bad Request", set()
+            return F"Bad Request", set()
 
         soup = BeautifulSoup(reqs.text, "html.parser")
 

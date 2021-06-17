@@ -54,12 +54,13 @@ class ScrapChordClient:
             socks = dict(poller.poll())
             if self.usr_send_pipe[0] in socks:
                 url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                self.logger.info(f"Recieved {url}\n {html[:100]} \n ... \n URLS:\n" + "\n".join(str(urlx) for urlx in url_list)) # Print url and first 100 chars from html
+                self.logger.info(f"Recieved {url}\n {html[:100]} \n ... \n URLS({len(url_list)}):\n" + "\n".join(str(urlx) for urlx in url_list)) # Print url and first 100 chars from html
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
                     self.logger.debug(f"Sending to pyobj: {line.split()}")
                     self.usr_send_pipe[0].send_pyobj(parse_requests(line))
                     break
+                self.logger.info("Input ready")
 
     def communicate_with_chord(self, known_nodes:SortedSet):
         comm_sock = get_router(self.context)
@@ -74,9 +75,10 @@ class ScrapChordClient:
         while True:
             socks = dict(poller.poll(TIMEOUT_COMM*MAX_IDDLE*500))
             if self.usr_send_pipe[1] in socks:
-                requests:Tuple = self.usr_send_pipe[1].recv_pyobj()
-                url_list = [url for url, _ in url_list]
-                for url, depth in requests:
+                client_requests:Tuple = self.usr_send_pipe[1].recv_pyobj()
+                self.logger.debug(f"Recieving request: {client_requests}")
+                url_list = [url for url, _ in client_requests]
+                for url, depth in client_requests:
                     self.update_search_tree(url, depth, search_tree)
             
             elif comm_sock in socks:
