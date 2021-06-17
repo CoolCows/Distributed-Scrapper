@@ -190,7 +190,7 @@ class ChordNode:
 
         request = self.context.socket(zmq.REQ)
         request.connect(f"tcp://{ip}:{port}")
-        self.logger.info(f"Sending RPC '{funct_name} {params}' to node {node_id}...")
+        # self.logger.debug(f"Sending RPC '{funct_name} {params}' to node {node_id}...")
         
         request.send_pyobj(FunctionCall(funct_name, params))
 
