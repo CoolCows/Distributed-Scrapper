@@ -45,7 +45,7 @@ class ScrapChordNode(ChordNode):
             )
             if len(net_nodes) > 0:
                 for node_addr in net_nodes:
-                    self.add_node((get_id(address_to_string((node_addr[0], node_addr[1] - 1))) % (2**self.bits), (node_addr[0], node_addr[1] - 1)))
+                    self.add_node((get_id(address_to_string(node_addr)) % (2**self.bits), (node_addr)))
                     succ_node = self.pop_node(0)
                     self.join(succ_node[0], succ_node[1])
                     self.logger.debug(f"Joined to {succ_node}")
@@ -67,7 +67,7 @@ class ScrapChordNode(ChordNode):
             self.logger.debug("Network discovery is ON")
             Thread(
                 target=net_beacon,
-                args=(self.address[1] + 1, CHORD_BEACON_PORT, CODE_WORD_CHORD),
+                args=(self.address[1], CHORD_BEACON_PORT, CODE_WORD_CHORD),
                 daemon=True
             ).start()
     
@@ -112,10 +112,13 @@ class ScrapChordNode(ChordNode):
         self.logger.debug("CliCom: Closing")
     
     def url_succesor(self, url:str) -> Tuple[str, int]:
-        url_id = get_id(url)
-        return self.address
+        url_id = get_id(url) % (2 ** self.bits)
+        self.logger.debug(f"Looing for successor of {url_id}")
+        # return self.address
         n = self.find_successor(url_id)
-        return n[1]
+        if n is not None:
+            return n[1]
+        return self.address
                 
     def communicate_with_scraper(self):
         self.logger.debug("CommScrap: Running")
