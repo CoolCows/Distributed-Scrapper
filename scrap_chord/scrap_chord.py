@@ -45,7 +45,7 @@ class ScrapChordNode(ChordNode):
             )
             if len(net_nodes) > 0:
                 for node_addr in net_nodes:
-                    self.add_node((get_id(address_to_string((node_addr[0], node_addr[1] - 1))) % (2**self.bits), node_addr))
+                    self.add_node((get_id(address_to_string((node_addr[0], node_addr[1] - 1))) % (2**self.bits), (node_addr[0], node_addr[1] - 1)))
                     succ_node = self.pop_node(0)
                     self.join(succ_node[0], succ_node[1])
                     self.logger.debug(f"joined to {succ_node}")
@@ -75,6 +75,7 @@ class ScrapChordNode(ChordNode):
         self.communicate_with_scraper()
 
     def communicate_with_client(self):
+        self.logger.debug(f"CliCom: Router binded to {self.address[0]}:{self.address[1] + 1}")
         comm_sock = get_router(self.context)
         comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 1}")
 
@@ -107,7 +108,8 @@ class ScrapChordNode(ChordNode):
                     message = pickle.dumps((url, html, url_list))
                     comm_sock.send_multipart([idx, REP_CLIENT_INFO, message])
                 request_table[url] = set()
-        self.logger.debug("CliCom: Ended")
+
+        self.logger.debug("CliCom: Closing")
     
     def url_succesor(self, url:str) -> Tuple[str, int]:
         url_id = get_id(url)
@@ -116,10 +118,10 @@ class ScrapChordNode(ChordNode):
         return n[1]
                 
     def communicate_with_scraper(self):
+        self.logger.debug("CommScrap: Running")
         pending_messages = SortedSet()
         last_connected = []
-        self.logger.debug("CommScrap: comm with scrap started")
-
+        
         poll = zmq.Poller()
         register_socks(poll, self.chord_scrap_pipe[1], self.push_scrap_pipe[1])
         while self.online:
@@ -161,15 +163,17 @@ class ScrapChordNode(ChordNode):
                     self.logger.debug(f"ScrapCom: Resending old mesages")
                     for url in pending_messages:
                         self.push_scrap_pipe[1].send_pyobj(url) 
+        
         self.logger.debug("ScrapComm: Closing ...")
     
     def push_pull_work(self):
+        self.logger.debug(f"PushPull: Running on {self.address[0]}:{self.address[1] + 2}, {self.address[1] + 3}")
+
         push_sock = self.context.socket(zmq.PUSH)
         pull_sock = self.context.socket(zmq.PULL)
         push_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 2}")
         pull_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 3}")
         
-        self.logger.debug(f"PushPull: Push Pull work binded to {self.address[0]}:{self.address[1] + 2}, {self.address[1] + 3}")
         poller = zmq.Poller()
         register_socks(poller, pull_sock, self.push_scrap_pipe[0])
         while self.online:
@@ -183,7 +187,8 @@ class ScrapChordNode(ChordNode):
                 obj = pull_sock.recv_pyobj()
                 self.push_scrap_pipe[0].send_pyobj(obj)
                 self.update_last_pull(time.time() + TIMEOUT_WORK*MAX_IDDLE)
-        self.logger.debug("Push-Pull closing ...")
+
+        self.logger.debug("PushPull: Closing ...")
     
     def connect_to_scraper(self,  last_connected:list) -> bool:
         comm_sock = get_router(self.context)

@@ -516,10 +516,10 @@ class ChordNode:
             try:
                 funct = getattr(self, fun.name)
                 ret = funct(*fun.params)
-                self.logger.info(f"Sending reply for {funct}...")
+                # self.logger.info(f"Sending reply for {funct}...")
                 self.reply.send_pyobj(ret)
             except AttributeError:
-                self.logger.warning(f"Request {funct} unknown")
+                self.logger.warning(f"Recieved unknown request: {funct}")
 
 
 def main():
