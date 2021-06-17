@@ -4,7 +4,7 @@ import time
 import logging
 from random import randint
 from threading import Lock, Thread
-from utils.tools import get_id, get_source_ip
+from utils.tools import address_to_string, get_id, get_source_ip
 from sortedcontainers import SortedSet
 
 import zmq.sugar as zmq
@@ -139,7 +139,7 @@ class ChordNode:
         self.reply.bind("tcp://*:%s" % port)
 
         self.bits = m
-        self.node_id = get_id(f"{self.address[0]}:{self.address[1]}") % 2**self.bits
+        self.node_id = get_id(address_to_string(self.address)) % 2**self.bits
         self.finger = [None for _ in range(m + 1)]
         self.successor_list = SortedSet(
             [],
@@ -484,24 +484,11 @@ class ChordNode:
         self.succ_list_lock.release()
         return n
 
-    def run(self):
+    def start_chord_base_routine(self):
         """
         Main routine of chord node
         """
 
-        self.start_chord_functionality()
-
-        while True:
-            fun = self.reply.recv_pyobj()
-            try:
-                funct = getattr(self, fun.name)
-                ret = funct(*fun.params)
-                self.logger.info(f"Sending reply for {funct}...")
-                self.reply.send_pyobj(ret)
-            except AttributeError:
-                self.logger.warning(f"Request {funct} unknown")
-
-    def start_chord_functionality(self):
         def stabilization():
             while True:
                 time.sleep(1)
@@ -522,6 +509,16 @@ class ChordNode:
         Thread(target=stabilization, daemon=True).start()
         Thread(target=update_successor_list, daemon=True).start()
         Thread(target=update_data, daemon=True).start()
+
+        while True:
+            fun = self.reply.recv_pyobj()
+            try:
+                funct = getattr(self, fun.name)
+                ret = funct(*fun.params)
+                # self.logger.info(f"Sending reply for {funct}...")
+                self.reply.send_pyobj(ret)
+            except AttributeError:
+                self.logger.warning(f"Recieved unknown request: {funct}")
 
 
 def main():

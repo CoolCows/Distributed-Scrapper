@@ -11,7 +11,9 @@
 
 ## Falta
 
-* Depurar intensamente el programa, respecto a comunicaciones y eso
+* Depurar comunicaciones intensamente:
+    - Probar que 2 nodos chord se hagan join correctamente, que pasa si se le hace join a un nodo que no existe
+    - Probar que la replicacion funcione una vez implementada
 * Agregar el scrapeo en profundidad, chequear que el scraping funcione en talla
 * Replicacion entre nodos
 * Una interfaz visual medio boba puede ayudar

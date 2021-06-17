@@ -7,7 +7,7 @@ def main(node_type, args):
         port = int(args[0])
         m = int(args[1])
         visible = False if len(args) >= 3 and args[2] =="f" else True
-        sc = ScrapChordNode(port, m, visible)
+        sc = ScrapChordNode(port, m, visible=visible)
         sc.run()
     
     elif node_type in {"scraper", "scrapper", "s"}:
@@ -31,5 +31,5 @@ if __name__ == "__main__":
     except ValueError:
         print("DEBUGING")
         node_type = "sc"
-        args = ["7050", "5"]#, "127.0.1.1:7050"]
+        args = ["7070", "5", "f"]#, "127.0.1.1:7050"]
     main(node_type, args)
