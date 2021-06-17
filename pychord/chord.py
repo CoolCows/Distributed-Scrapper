@@ -4,7 +4,7 @@ import time
 import logging
 from random import randint
 from threading import Lock, Thread
-from utils.tools import get_id, get_source_ip
+from utils.tools import address_to_string, get_id, get_source_ip
 from sortedcontainers import SortedSet
 
 import zmq.sugar as zmq
@@ -140,7 +140,7 @@ class ChordNode:
         self.reply.bind("tcp://*:%s" % port)
 
         self.bits = m
-        self.node_id = get_id(f"{self.address[0]}:{self.address[1]}") % 2**self.bits
+        self.node_id = get_id(address_to_string(self.address)) % 2**self.bits
         self.finger = [None for _ in range(m + 1)]
         self.successor_list = SortedSet(
             [],

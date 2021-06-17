@@ -31,5 +31,5 @@ if __name__ == "__main__":
     except ValueError:
         print("DEBUGING")
         node_type = "sc"
-        args = ["7050", "5"]#, "127.0.1.1:7050"]
+        args = ["7070", "5", "f"]#, "127.0.1.1:7050"]
     main(node_type, args)

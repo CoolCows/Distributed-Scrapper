@@ -32,7 +32,7 @@ class ScrapChordNode(ChordNode):
 
     def run(self, addr:str=""):
         self.online = True
-        self.logger.info(f"ScrapKord running on {self.address[0]}:{self.address[1]}")
+        self.logger.info(f"ScrapKord({self.node_id}) running on {self.address[0]}:{self.address[1]}")
         
         if addr != "":
             self.join(get_id(addr), parse_address(addr))
@@ -45,10 +45,12 @@ class ScrapChordNode(ChordNode):
             )
             if len(net_nodes) > 0:
                 for node_addr in net_nodes:
-                    self.add_node((get_id(address_to_string(node_addr)), node_addr))
+                    self.add_node((get_id(address_to_string((node_addr[0], node_addr[1] - 1))) % (2**self.bits), node_addr))
                     succ_node = self.pop_node(0)
                     self.join(succ_node[0], succ_node[1])
+                    self.logger.debug(f"joined to {succ_node}")
             else:
+                self.logger.debug(f"Alone in the net")
                 self.join()
 
         base_routine = Thread(target=self.start_chord_base_routine)
