@@ -2,7 +2,7 @@ import logging
 
 from requests.api import request
 from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM
-from scrap_chord.util import add_to_dict, in_between, parse_requests
+from scrap_chord.util import add_search_tree, add_to_dict, in_between, parse_requests, remove_back_slashes, update_search_trees
 import sys
 import pickle
 from threading import  Thread
@@ -18,13 +18,14 @@ from utils.tools import address_to_string, connect_router, find_nodes, get_id, g
 class ScrapChordClient:
     def __init__(self, port, m) -> None:
         self.address = (get_source_ip(), port)
+        
         self.context = zmq.Context()
         self.usr_send_pipe = zpipe(self.context)
 
         self.bits = m
-        self.recv_cache = dict()
+        self.local_cache = dict()
         self.online = True
-
+        
         # debbug & info
         logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG)
         self.logger = logging.getLogger("client")
@@ -66,7 +67,7 @@ class ScrapChordClient:
 
     def communicate_with_chord(self, known_nodes:SortedSet):
         comm_sock = get_router(self.context)
-        search_tree = dict()
+        search_trees = []
 
         connected = set()
         pending_recv = dict() #SortedSet()
@@ -74,14 +75,14 @@ class ScrapChordClient:
         register_socks(
             poller, comm_sock, self.usr_send_pipe[1]
         )
-        while True:
+        while self.online:
             socks = dict(poller.poll(TIMEOUT_COMM*MAX_IDDLE*1000))
             if self.usr_send_pipe[1] in socks:
                 client_requests:Tuple = self.usr_send_pipe[1].recv_pyobj()
                 self.logger.debug(f"Recieving request: {client_requests}")
                 url_list = [url for url, _ in client_requests]
                 for url, depth in client_requests:
-                    self.update_search_tree(url, depth, search_tree)
+                    add_search_tree(search_trees, url, depth)
             
             elif comm_sock in socks:
                 _, flag, message = comm_sock.recv_multipart()
@@ -89,29 +90,36 @@ class ScrapChordClient:
                 if flag == REP_CLIENT_NODE:
                     next_node = pickle.loads(message)
                     self.add_node(known_nodes, next_node)
-                    url_list = pending_recv
+                    url_list = [*pending_recv]
                 
                 if flag == REP_CLIENT_INFO:
                     url, html, url_list = pickle.loads(message)
-                    self.recv_cache[url] = (html, url_list)
-                    self.logger.debug("Forwarding html for display")
-                    self.usr_send_pipe[1].send_pyobj((url, html, url_list)) # Send recieved url and html to main thread for display
+                    url = remove_back_slashes(url)
+                    if url in self.local_cache:
+                        continue
+                    self.local_cache[url] = (html, url_list)
+                    url_list = [*update_search_trees(search_trees, url, url_list)]
                     del pending_recv[url]
-                    url_list = []
-            
+                    self.usr_send_pipe[1].send_pyobj((url, html, url_list)) # Send recieved url and html to main thread for display
             else:
-                url_list = pending_recv
+                url_list = [*pending_recv]
 
             for url in url_list:
-                if url in self.recv_cache:
-                    self.usr_send_pipe[1].send_pyobj((url, *self.recv_cache[url]))
+                if url in self.local_cache:
+                    (html, urlx_list) = self.local_cache[url]
+                    url_list += [urlx for urlx in update_search_trees(search_trees, url, urlx_list) if urlx not in pending_recv]
+                    self.usr_send_pipe[1].send_pyobj((url, html, urlx_list))
                     continue
+                
+                url = remove_back_slashes(url)
                 add_to_dict(pending_recv, url)
-
                 idx, target_addr = self.select_target_node(url, known_nodes)
-                if pending_recv[url] > 2:
+                if  pending_recv[url] > 4:
+                    self.logger.debug(f"Removing {idx} because of its delay with {url}")
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
                     _, target_addr = self.select_target_node(url, known_nodes)
+                    if target_addr is None:
+                        break
                     pending_recv[url] = 1
 
                 message = pickle.dumps((url, self.address))
@@ -119,27 +127,21 @@ class ScrapChordClient:
                 
                 if not target_addr in connected:
                     connect_router(comm_sock, target_addr)
-                    connected.add(target_addr)#time.sleep(1000000)
+                    connected.add(target_addr)
                 comm_sock.send_multipart([address_to_string(target_addr).encode(), message])
-
-    def update_pending(self, url, url_list, pending_recv, search_tree):
-        remaining = search_tree[url] - 1
-        if remaining == 0:
-            return
-        for urlx in url_list:
-            search_tree[urlx] = remaining
-            pending_recv.add((urlx, remaining))
-
-    def update_search_tree(self, url, depth, search_tree):
-        try:
-            search_tree[url] = max(depth, search_tree[url])
-        except KeyError:
-            search_tree[url] = depth
-
+        
+        comm_sock.close()
+        self.logger.info("Comunication with chord closing")
 
     def select_target_node(self, url, known_nodes) -> Tuple[int, tuple]:
         if len(known_nodes) == 0:
-            raise Exception("There are no known nodes")
+            self.logger.info("Re-connecting to net")
+            self.add_node(known_nodes, *self.get_chord_nodes())
+            if len(known_nodes) == 0:
+                self.logger.info("No online chord nodes found")
+                self.online = False
+                return None, None
+        
         if len(known_nodes) == 1:
             return (known_nodes[0][0], (known_nodes[0][1][0], known_nodes[0][1][1] + 1))
         url_id = get_id(url) % (2 ** self.bits)
