@@ -100,9 +100,10 @@ class ScrapChordClient:
             elif comm_sock in socks:
                 _, flag, message = comm_sock.recv_multipart()
                 if flag == REP_CLIENT_NODE:
-                    next_node = pickle.loads(message)
+                    (url_request, next_node) = pickle.loads(message)
                     self.add_node(known_nodes, next_node)
-                    url_list = [*pending_recv]
+                    url_list = [url_request]
+                    pending_recv[url_request] = time.time() + 0.6
                 
                 if flag == REP_CLIENT_INFO:
                     url, html, url_list = pickle.loads(message)
@@ -123,11 +124,13 @@ class ScrapChordClient:
                     self.usr_send_pipe[1].send_pyobj((url, html, urlx_list))
                     continue
                 
+                time.sleep(0.2)
                 url = remove_back_slashes(url)
                 if url not in pending_recv:
                     pending_recv[url] = time.time() + 0.5
                 idx, target_addr = self.select_target_node(url, known_nodes)
                 if  time.time() - TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
+                    self.logger.debug(f"Removing {idx} due to delayed response")
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
                     _, target_addr = self.select_target_node(url, known_nodes)
                     if target_addr is None:
@@ -157,10 +160,10 @@ class ScrapChordClient:
         if len(known_nodes) == 1:
             return (known_nodes[0][0], (known_nodes[0][1][0], known_nodes[0][1][1] + 1))
         url_id = get_id(url) % (2 ** self.bits)
-        self.logger.debug(f"Selecting target of {url_id} from {known_nodes}")
         lwb_id, _ = known_nodes[-1]
         for node_id, addr in known_nodes:
-            if in_between(self.bits, url_id, lwb_id, node_id):
+            if in_between(self.bits, url_id, lwb_id + 1, node_id):
+                self.logger.debug(f"Node {node_id} handles {url_id}({url[:30]}) from (" + ",".join(str(n[0]) for n in known_nodes) + ")")
                 return (node_id, (addr[0], addr[1] + 1))
             lwb_id = node_id
         
