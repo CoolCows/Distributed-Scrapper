@@ -45,34 +45,34 @@ class ScrapChordNode(ChordNode):
             )
             if len(net_nodes) > 0:
                 for node_addr in net_nodes:
-                    self.add_node((get_id(address_to_string((node_addr[0], node_addr[1] - 1))) % (2**self.bits), (node_addr[0], node_addr[1] - 1)))
+                    self.add_node((get_id(address_to_string(node_addr)) % (2**self.bits), (node_addr)))
                     succ_node = self.pop_node(0)
                     self.join(succ_node[0], succ_node[1])
-                    self.logger.debug(f"joined to {succ_node}")
+                    self.logger.debug(f"Joined to {succ_node}")
             else:
                 self.logger.debug(f"Alone in the net")
                 self.join()
 
         base_routine = Thread(target=self.start_chord_base_routine)
-        comm_client = Thread(target=self.communicate_with_client)
-        # comm_scrap = Thread(target=self.communicate_with_scraper)
+        # comm_client = Thread(target=self.communicate_with_client)
+        comm_scrap = Thread(target=self.communicate_with_scraper)
         push_pull = Thread(target=self.push_pull_work)
         
         base_routine.start()
-        comm_client.start()
-        # comm_scrap.start()
+        # comm_client.start()
+        comm_scrap.start()
         push_pull.start()
 
         if self.visible:
             self.logger.debug("Network discovery is ON")
             Thread(
                 target=net_beacon,
-                args=(self.address[1] + 1, CHORD_BEACON_PORT, CODE_WORD_CHORD),
+                args=(self.address[1], CHORD_BEACON_PORT, CODE_WORD_CHORD),
                 daemon=True
             ).start()
     
-        # self.communicate_with_client()
-        self.communicate_with_scraper()
+        self.communicate_with_client()
+        #self.communicate_with_scraper()
 
     def communicate_with_client(self):
         self.logger.debug(f"CliCom: Router binded to {self.address[0]}:{self.address[1] + 1}")
@@ -101,7 +101,7 @@ class ScrapChordNode(ChordNode):
                     comm_sock.send_multipart([idx, REP_CLIENT_NODE, node_addr_byte])
             
             elif self.chord_scrap_pipe[0] in socks:
-                self.logger.debug("CliCom: Recieved work givin to client")
+                self.logger.debug("CliCom: Recieved work forwarding it to client")
                 url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj()
                 for addr in request_table[url]:
                     idx = router_table[addr]
@@ -112,10 +112,13 @@ class ScrapChordNode(ChordNode):
         self.logger.debug("CliCom: Closing")
     
     def url_succesor(self, url:str) -> Tuple[str, int]:
-        url_id = get_id(url)
-        return self.address
+        url_id = get_id(url) % (2 ** self.bits)
+        self.logger.debug(f"Looing for successor of {url_id}")
+        # return self.address
         n = self.find_successor(url_id)
-        return n[1]
+        if n is not None:
+            return n[1]
+        return self.address
                 
     def communicate_with_scraper(self):
         self.logger.debug("CommScrap: Running")
@@ -150,6 +153,8 @@ class ScrapChordNode(ChordNode):
             elif self.push_scrap_pipe[1] in socks:
                 # rcv object
                 url, html, url_list = self.push_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
+                if url in self.cache:
+                    continue
                 self.logger.debug(f"ScrapCom: work done with {url}")
                 # remove from pending
                 pending_messages.remove(url)

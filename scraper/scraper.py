@@ -1,12 +1,10 @@
 import logging
 import pickle
 from typing import Tuple
-import requests
-from requests.exceptions import RequestException, MissingSchema 
 import zmq.sugar as zmq
-from bs4 import BeautifulSoup
 from threading import Lock, Thread
 from .scraper_const import *
+from .scraper_tools import extract_html 
 from utils.tools import get_router, net_beacon, zpipe, recieve_multipart_timeout, get_source_ip
 from utils.const import CODE_WORD_SCRAP, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CONN, REP_SCRAP_URL, REQ_SCRAP_ACK, REQ_SCRAP_URL, SCRAP_BEACON_PORT, SCRAP_PORT, REQ_SCRAP_ASOC, REP_SCRAP_ASOC_YES, REP_SCRAP_ASOC_NO
 
@@ -111,7 +109,7 @@ class Scraper:
             except zmq.error.Again:
                 break
             self.logger.debug(f"WorkerThread({thread_id}): working ...")
-            html, urls = self.__extract_html(url)
+            html, urls = extract_html(url, self.logger)
             push_sock.send_pyobj((url, html, urls))
             self.logger.debug(f"WorkerThread({thread_id}): pushed work")
         
@@ -119,23 +117,6 @@ class Scraper:
         pull_sock.close()
         push_sock.close()
 
-    def __extract_html(self, url):
-        try:
-            reqs = requests.get(url)
-        except RequestException as exception:
-            if isinstance(exception, MissingSchema):
-                return self.__extract_html("http://" + url)
-            return "Bad Request", set()
-
-        soup = BeautifulSoup(reqs.text, "html.parser")
-
-        urls = set()
-        for link in soup.find_all("a"):
-            l = link.get("href")
-            urls.add(l)
-
-        return reqs.text, urls
-        
     def __update_workers(self):
         self.worker_threads = [None if thread is None or not thread[1].is_alive() else thread for thread in self.worker_threads]
         self.num_threads = len([thread for thread in self.worker_threads if thread is not None])

@@ -189,7 +189,7 @@ class ChordNode:
 
         request = self.context.socket(zmq.REQ)
         request.connect(f"tcp://{ip}:{port}")
-        self.logger.info(f"Sending RPC '{funct_name} {params}' to node {node_id}...")
+        # self.logger.debug(f"Sending RPC '{funct_name} {params}' to node {node_id}...")
         
         request.send_pyobj(FunctionCall(funct_name, params))
 
@@ -200,7 +200,7 @@ class ChordNode:
         if ready:
             ret = request.recv_pyobj()
         else:
-            self.logger.warning("Request for RPC timeout :(")
+            self.logger.warning(f"Request({funct_name}) for RPC timeout :(")
             ret = None
         request.close()
         return ret
