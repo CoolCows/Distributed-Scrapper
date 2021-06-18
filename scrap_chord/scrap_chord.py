@@ -94,15 +94,17 @@ class ScrapChordNode(ChordNode):
                 url_node_addr = self.url_succesor(url_request)
                 
                 if self.address == url_node_addr:
+                    self.logger.debug(f"CliCom: Forwarding {url_request} to scraper")
                     self.register_request(url_request, client_addr, request_table)
                     router_table[client_addr] = idx
                     self.chord_scrap_pipe[0].send_pyobj(url_request)
                 else:
-                    node_addr_byte = pickle.dumps(url_node_addr)
-                    comm_sock.send_multipart([idx, REP_CLIENT_NODE, node_addr_byte])
+                    self.logger.debug(f"CliCom: Returning {url_request} to client")
+                    message = pickle.dumps((url_request, url_node_addr))
+                    comm_sock.send_multipart([idx, REP_CLIENT_NODE, message])
             
             elif self.chord_scrap_pipe[0] in socks:
-                url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj()
+                url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 self.logger.debug(f"CliCom: Forwarding {url} to client")
                 for addr in request_table[url]:
                     idx = router_table[addr]
@@ -169,6 +171,7 @@ class ScrapChordNode(ChordNode):
                     for url in pending_messages:
                         self.push_scrap_pipe[1].send_pyobj(url)
                 else:
+                    raise Exception("Test")
                     scrap_conns = 0
             elif connected_to_any_scraper and len(pending_messages) > scrap_conns*30:
                 self.logger.debug(f"ScrapCom: Looking for more suport from scrapers")
@@ -196,7 +199,7 @@ class ScrapChordNode(ChordNode):
                 request_url = self.push_scrap_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 push_sock.send_pyobj(request_url)
             elif pull_sock in socks:
-                obj = pull_sock.recv_pyobj()
+                obj = pull_sock.recv_pyobj(zmq.NOBLOCK)
                 self.push_scrap_pipe[0].send_pyobj(obj)
                 self.update_last_pull(time.time() + TIMEOUT_WORK*MAX_IDDLE)
             else:
