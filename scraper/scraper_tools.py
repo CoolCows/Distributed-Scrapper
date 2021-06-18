@@ -19,7 +19,7 @@ def extract_html(url, logger):
         l = link.get("href")
         if has_header(l):
             if get_header(l) != domain:
-                logger.debug(f"{l} is outside the domain {domain}")
+                # logger.debug(f"{l} is outside the domain {domain}")
                 continue
         else:
             l = url + l

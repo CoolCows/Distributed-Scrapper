@@ -28,7 +28,7 @@ class Scraper:
         self.lock = Lock()
 
         # debbug & info
-        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG)
+        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("scraper")
 
     def run(self):
@@ -64,14 +64,12 @@ class Scraper:
             if len(request) == 0:
                 continue
             
-            self.logger.debug(f"recieved request")
             sock_id, flag, info = request
             if flag == REQ_SCRAP_ASOC:
                 sock_addr = pickle.loads(info)
                 self.__update_workers()
                 if self.num_threads < self.max_threads:
                     self.__create_worker(sock_addr)
-                    self.logger.debug("Replying yes")
                     comm_sock.send_multipart([sock_id, REP_SCRAP_ASOC_YES])
                 else:
                     comm_sock.send_multipart([sock_id, REP_SCRAP_ASOC_NO])
@@ -97,7 +95,7 @@ class Scraper:
         ip, port = addr
         pull_sock = self.ctx.socket(zmq.PULL)
         push_sock = self.ctx.socket(zmq.PUSH)
-        self.logger.debug(f"WorkerThread({thread_id}): connecting to {ip}: {port + 2}, {port + 3}")
+        self.logger.info(f"WorkerThread({thread_id}): connecting to {ip}: {port + 2}, {port + 3}")
         pull_sock.connect(f"tcp://{ip}:{port + 2}")
         push_sock.connect(f"tcp://{ip}:{port + 3}")
 
@@ -110,7 +108,7 @@ class Scraper:
             html, urls = extract_html(url, self.logger)
             push_sock.send_pyobj((url, html, urls))
         
-        self.logger.debug(f"WorkerThread({thread_id}): closing.")
+        self.logger.info(f"WorkerThread({thread_id}): closing.")
         pull_sock.close()
         push_sock.close()
 
