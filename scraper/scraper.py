@@ -99,6 +99,7 @@ class Scraper:
         pull_sock.connect(f"tcp://{ip}:{port + 2}")
         push_sock.connect(f"tcp://{ip}:{port + 3}")
 
+        count = 0
         pull_sock.rcvtimeo = (TIMEOUT_WORK * MAX_IDDLE) * 1000
         while True: 
             try:
@@ -106,6 +107,8 @@ class Scraper:
             except zmq.error.Again:
                 break
             html, urls = extract_html(url, self.logger)
+            self.logger.info(f"WorkerThread({thread_id}): Forwarding Result({count}) to {ip}")
+            count += 1
             push_sock.send_pyobj((url, html, urls))
         
         self.logger.info(f"WorkerThread({thread_id}): closing.")

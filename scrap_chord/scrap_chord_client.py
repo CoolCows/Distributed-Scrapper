@@ -57,11 +57,13 @@ class ScrapChordClient:
             register_socks(poller, self.gui_sock)
         
         self.logger.info("Input ready:")
+        recieved = 0
         while self.online:
             socks = dict(poller.poll(1000))
             if self.usr_send_pipe[0] in socks:
                 url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                self.logger.info(f"Recieved {url}: URLS({len(url_list)})") # Print url and first 100 chars from html
+                self.logger.info(f"({recieved})Recieved {url}: from {'cache' if url in self.local_cache else 'scraper'}")
+                recieved += 1
                 if self.gui_sock is not None:
                     self.gui_sock.send_pyobj((url, html, url_list))
 
@@ -108,13 +110,15 @@ class ScrapChordClient:
                 if flag == REP_CLIENT_INFO:
                     url, html, url_list = pickle.loads(message)
                     url = remove_back_slashes(url)
-                    if url in self.local_cache:
-                        continue
-                    self.local_cache[url] = (html, url_list)
-                    url_list = [*update_search_trees(search_trees, url, url_list)]
-                    del pending_recv[url]
+                    try:
+                        del pending_recv[url]
+                    except KeyError:
+                        pass
                     self.usr_send_pipe[1].send_pyobj((url, html, url_list)) # Send recieved url and html to main thread for display
+                    url_list = [*update_search_trees(search_trees, url, url_list)]
+                    self.local_cache[url] = (html, url_list)
             else:
+                self.logger.debug(len([*pending_recv]))
                 url_list = [*pending_recv]
 
             for url in url_list:
@@ -124,12 +128,11 @@ class ScrapChordClient:
                     self.usr_send_pipe[1].send_pyobj((url, html, urlx_list))
                     continue
                 
-                time.sleep(0.2)
                 url = remove_back_slashes(url)
                 if url not in pending_recv:
                     pending_recv[url] = time.time() + 0.5
                 idx, target_addr = self.select_target_node(url, known_nodes)
-                if  time.time() - TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
+                if time.time() - TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
                     self.logger.debug(f"Removing {idx} due to delayed response")
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
                     _, target_addr = self.select_target_node(url, known_nodes)
@@ -144,6 +147,8 @@ class ScrapChordClient:
                     connect_router(comm_sock, target_addr)
                     connected.add(target_addr)
                 comm_sock.send_multipart([address_to_string(target_addr).encode(), message])
+
+                #time.sleep(1)
         
         comm_sock.close()
         self.logger.info("Comunication with chord closing")
@@ -163,7 +168,7 @@ class ScrapChordClient:
         lwb_id, _ = known_nodes[-1]
         for node_id, addr in known_nodes:
             if in_between(self.bits, url_id, lwb_id + 1, node_id):
-                self.logger.debug(f"Node {node_id} handles {url_id}({url[:30]}) from (" + ",".join(str(n[0]) for n in known_nodes) + ")")
+                # self.logger.debug(f"Node {node_id} handles {url_id}({url[:30]}) from (" + ",".join(str(n[0]) for n in known_nodes) + ")")
                 return (node_id, (addr[0], addr[1] + 1))
             lwb_id = node_id
         
