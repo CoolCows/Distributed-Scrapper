@@ -2,7 +2,7 @@ import logging
 import time
 from requests.api import request
 from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM
-from scrap_chord.util import add_search_tree, in_between, parse_requests, remove_back_slashes, update_search_trees
+from scrap_chord.util import add_search_tree, in_between, parse_requests, remove_back_slashes, reset_times, select_target_node, update_search_trees
 import sys
 import pickle
 from threading import  Thread
@@ -62,7 +62,7 @@ class ScrapChordClient:
             socks = dict(poller.poll(1000))
             if self.usr_send_pipe[0] in socks:
                 url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                self.logger.info(f"({recieved})Recieved {url}: from {'cache' if url in self.local_cache else 'scraper'}")
+                self.logger.info(f"({recieved})Recieved {url}: Links({len(url_list)})")
                 recieved += 1
                 if self.gui_sock is not None:
                     self.gui_sock.send_pyobj((url, html, url_list))
@@ -105,41 +105,43 @@ class ScrapChordClient:
                     (url_request, next_node) = pickle.loads(message)
                     self.add_node(known_nodes, next_node)
                     url_list = [url_request]
-                    pending_recv[url_request] = time.time() + 0.6
+                    reset_times(url, known_nodes, pending_recv, time.time() + 0.6,  self.bits) 
                 
                 if flag == REP_CLIENT_INFO:
-                    url, html, url_list = pickle.loads(message)
+                    url, html, url_set = pickle.loads(message)
                     url = remove_back_slashes(url)
                     try:
                         del pending_recv[url]
                     except KeyError:
                         pass
-                    self.usr_send_pipe[1].send_pyobj((url, html, url_list)) # Send recieved url and html to main thread for display
-                    url_list = [*update_search_trees(search_trees, url, url_list)]
-                    self.local_cache[url] = (html, url_list)
+                    self.usr_send_pipe[1].send_pyobj((url, html, url_set)) # Send recieved url and html to main thread for display
+                    self.local_cache[url] = (html, url_set)
+                    url_set = update_search_trees(search_trees, url, url_set)
+                    url_list = [*url_set]
             else:
-                self.logger.debug(len([*pending_recv]))
+                self.logger.debug(f"pending: {len([*pending_recv])}, st: {search_trees})")
                 url_list = [*pending_recv]
 
             for url in url_list:
                 if url in self.local_cache:
-                    (html, urlx_list) = self.local_cache[url]
-                    url_list += [urlx for urlx in update_search_trees(search_trees, url, urlx_list) if urlx not in pending_recv]
-                    self.usr_send_pipe[1].send_pyobj((url, html, urlx_list))
+                    (html, url_set) = self.local_cache[url]
+                    url_list2 = [*update_search_trees(search_trees, url, url_set)] #if urlx not in pending_recv]
+                    print(url_list2, url, len(url_set))
+                    url_list += url_list2
+                    self.usr_send_pipe[1].send_pyobj((url, html, url_set))
                     continue
                 
                 url = remove_back_slashes(url)
                 if url not in pending_recv:
                     pending_recv[url] = time.time() + 0.5
-                idx, target_addr = self.select_target_node(url, known_nodes)
-                if time.time() - TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
+                idx, target_addr = self.target_node(url, known_nodes)
+                if time.time() - 2*TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
                     self.logger.debug(f"Removing {idx} due to delayed response")
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
-                    _, target_addr = self.select_target_node(url, known_nodes)
+                    _, target_addr = self.target_node(url, known_nodes)
                     if target_addr is None:
                         break
-                    for urlx in pending_recv:
-                        pending_recv[urlx] = time.time() + 0.5
+                    reset_times(url, known_nodes, pending_recv, time.time() + 0.5, self.bits)
 
                 message = pickle.dumps((url, self.address))
                 
@@ -153,7 +155,7 @@ class ScrapChordClient:
         comm_sock.close()
         self.logger.info("Comunication with chord closing")
 
-    def select_target_node(self, url, known_nodes) -> Tuple[int, tuple]:
+    def target_node(self, url, known_nodes) -> Tuple[int, tuple]:
         if len(known_nodes) == 0:
             self.logger.info("Re-connecting to net")
             self.add_node(known_nodes, *self.get_chord_nodes())
@@ -162,17 +164,7 @@ class ScrapChordClient:
                 self.online = False
                 return None, None
         
-        if len(known_nodes) == 1:
-            return (known_nodes[0][0], (known_nodes[0][1][0], known_nodes[0][1][1] + 1))
-        url_id = get_id(url) % (2 ** self.bits)
-        lwb_id, _ = known_nodes[-1]
-        for node_id, addr in known_nodes:
-            if in_between(self.bits, url_id, lwb_id + 1, node_id):
-                # self.logger.debug(f"Node {node_id} handles {url_id}({url[:30]}) from (" + ",".join(str(n[0]) for n in known_nodes) + ")")
-                return (node_id, (addr[0], addr[1] + 1))
-            lwb_id = node_id
-        
-        raise Exception("A node must be always found")
+        return select_target_node(url, known_nodes, self.bits)
 
     def add_node(self, known_nodes:SortedSet, *nodes_addr):
         for addr in nodes_addr:
