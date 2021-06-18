@@ -16,18 +16,21 @@ from utils.tools import address_to_string, connect_router, find_nodes, get_id, g
 
 
 class ScrapChordClient:
-    def __init__(self, port, m) -> None:
+    def __init__(self, port, m, gui_sock = None) -> None:
         self.address = (get_source_ip(), port)
         
         self.context = zmq.Context()
         self.usr_send_pipe = zpipe(self.context)
+        self.gui_sock = gui_sock
 
         self.bits = m
         self.local_cache = dict()
         self.online = True
         
         # debbug & info
-        logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG)
+        logging.basicConfig(
+            format = "%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG
+        )
         self.logger = logging.getLogger("client")
 
     def run(self, address:str = ""):
@@ -50,30 +53,40 @@ class ScrapChordClient:
         
         poller = zmq.Poller()
         register_socks(poller, self.usr_send_pipe[0], sys.stdin)
+        if self.gui_sock is not None:
+            register_socks(poller, self.gui_sock)
+        
         self.logger.info("Input ready:")
         while self.online:
-            socks = dict(poller.poll())
+            socks = dict(poller.poll(1000))
             if self.usr_send_pipe[0] in socks:
                 url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 self.logger.info(f"Recieved {url}: URLS({len(url_list)}") # Print url and first 100 chars from html
-            if sys.stdin.fileno() in socks:
+
+            elif sys.stdin.fileno() in socks:
                 for line in sys.stdin:
                     client_request = parse_requests(line)
                     if len(client_request) != 0:
                         self.usr_send_pipe[0].send_pyobj(client_request)
                     break
                 self.logger.info("Input ready:")
+            
+            elif self.gui_sock in socks:
+                gui_request = self.gui_sock.recv_pyobj(zmq.NOBLOCK)
+                client_request = parse_requests(gui_request)
+                self.logger.debug(str(client_request))
+                self.usr_send_pipe[0].send_pyobj(client_request)
 
     def communicate_with_chord(self, known_nodes:SortedSet):
         comm_sock = get_router(self.context)
         search_trees = []
 
         connected = set()
-        pending_recv = dict() #SortedSet()
+        pending_recv = dict()
+        
         poller = zmq.Poller()
-        register_socks(
-            poller, comm_sock, self.usr_send_pipe[1]
-        )
+        register_socks(poller, comm_sock, self.usr_send_pipe[1])
+        
         while self.online:
             socks = dict(poller.poll(TIMEOUT_COMM*MAX_IDDLE*1000))
             if self.usr_send_pipe[1] in socks:
@@ -109,7 +122,8 @@ class ScrapChordClient:
                     continue
                 
                 url = remove_back_slashes(url)
-                pending_recv[url] = time.time() + 0.5
+                if url not in pending_recv:
+                    pending_recv[url] = time.time() + 0.5
                 idx, target_addr = self.select_target_node(url, known_nodes)
                 if  time.time() - TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
