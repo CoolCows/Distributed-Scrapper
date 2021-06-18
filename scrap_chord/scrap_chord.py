@@ -77,6 +77,7 @@ class ScrapChordNode(ChordNode):
     def communicate_with_client(self):
         self.logger.debug(f"CliCom: Router binded to {self.address[0]}:{self.address[1] + 1}")
         comm_sock = get_router(self.context)
+        comm_sock.router_mandatory = 0
         comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 1}")
 
         router_table = dict()
@@ -124,7 +125,8 @@ class ScrapChordNode(ChordNode):
         self.logger.debug("CommScrap: Running")
         pending_messages = SortedSet()
         last_connected = []
-        
+        scrap_conns = 0
+
         poll = zmq.Poller()
         register_socks(poll, self.chord_scrap_pipe[1], self.push_scrap_pipe[1])
         while self.online:
@@ -162,9 +164,16 @@ class ScrapChordNode(ChordNode):
                 
             elif not connected_to_any_scraper and len(pending_messages) > 0:
                 if self.connect_to_scraper(last_connected):
+                    scrap_conns = 1
                     self.logger.debug(f"ScrapCom: Resending old mesages")
                     for url in pending_messages:
-                        self.push_scrap_pipe[1].send_pyobj(url) 
+                        self.push_scrap_pipe[1].send_pyobj(url)
+                else:
+                    scrap_conns = 0
+            elif connected_to_any_scraper and len(pending_messages) > scrap_conns*30:
+                self.logger.debug(f"ScrapCom: Looking for more suport from scrapers")
+                if self.connect_to_other_scraper():
+                    scrap_conns += 1
             else:
                 self.logger.debug("ScrapCom is iddle")
                 time.sleep(0.5)
@@ -202,7 +211,8 @@ class ScrapChordNode(ChordNode):
         
         if len(self.scraper_list) == 0:
             self.scraper_list = self.get_online_scrappers()
-
+        
+        info = pickle.dumps(self.address)
         while len(self.scraper_list) > 0:
             if len(last_connected) > 0:
                 x = last_connected.pop(-1)
@@ -210,7 +220,6 @@ class ScrapChordNode(ChordNode):
                 x = random.randint(0, len(self.scraper_list) - 1)
             
             addr = self.scraper_list[x]
-            info = pickle.dumps(self.address)
             
             connect_router(comm_sock, addr)
             comm_sock.send_multipart([address_to_string(addr).encode(), REQ_SCRAP_ASOC,  info])
@@ -221,6 +230,24 @@ class ScrapChordNode(ChordNode):
                 continue
             if rep[1] == REP_SCRAP_ASOC_YES:
                 last_connected.append(x)
+                self.update_last_pull(time.time() + TIMEOUT_WORK*MAX_IDDLE)
+                return True
+        return False
+    
+    def connect_to_other_scraper(self):
+        comm_sock = get_router(self.context)
+        comm_sock.rcvtimeo = 1500
+
+        info = pickle.dumps(self.address)
+        for scrap_addr in self.scraper_list:
+            connect_router(comm_sock, scrap_addr)
+            comm_sock.send_multipart([address_to_string(scrap_addr).encode(), REQ_SCRAP_ASOC,  info])
+            try:
+                rep = comm_sock.recv_multipart()
+            except zmq.error.Again:
+                continue
+
+            if rep[1] == REP_SCRAP_ASOC_YES:
                 self.update_last_pull(time.time() + TIMEOUT_WORK*MAX_IDDLE)
                 return True
         return False
