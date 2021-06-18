@@ -1,5 +1,5 @@
 import logging
-
+import time
 from requests.api import request
 from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM
 from scrap_chord.util import add_search_tree, add_to_dict, in_between, parse_requests, remove_back_slashes, update_search_trees
@@ -55,12 +55,11 @@ class ScrapChordClient:
             socks = dict(poller.poll())
             if self.usr_send_pipe[0] in socks:
                 url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                self.logger.info(f"Recieved {url}\n {html[:100]} \n ... \n URLS({len(url_list)}):\n" + "\n".join(str(urlx) for urlx in url_list)) # Print url and first 100 chars from html
+                self.logger.info(f"Recieved {url}: URLS({len(url_list)}") # Print url and first 100 chars from html
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
                     client_request = parse_requests(line)
                     if len(client_request) != 0:
-                        self.logger.debug(f"Sending to pyobj: {client_request}")
                         self.usr_send_pipe[0].send_pyobj(client_request)
                     break
                 self.logger.info("Input ready:")
@@ -79,14 +78,12 @@ class ScrapChordClient:
             socks = dict(poller.poll(TIMEOUT_COMM*MAX_IDDLE*1000))
             if self.usr_send_pipe[1] in socks:
                 client_requests:Tuple = self.usr_send_pipe[1].recv_pyobj()
-                self.logger.debug(f"Recieving request: {client_requests}")
                 url_list = [url for url, _ in client_requests]
                 for url, depth in client_requests:
                     add_search_tree(search_trees, url, depth)
             
             elif comm_sock in socks:
                 _, flag, message = comm_sock.recv_multipart()
-                self.logger.debug(f"Recieving reply to request: {flag}")
                 if flag == REP_CLIENT_NODE:
                     next_node = pickle.loads(message)
                     self.add_node(known_nodes, next_node)
@@ -112,18 +109,16 @@ class ScrapChordClient:
                     continue
                 
                 url = remove_back_slashes(url)
-                add_to_dict(pending_recv, url)
+                pending_recv[url] = time.time() + 0.5
                 idx, target_addr = self.select_target_node(url, known_nodes)
-                if  pending_recv[url] > 4:
-                    self.logger.debug(f"Removing {idx} because of its delay with {url}")
+                if  time.time() - TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
                     _, target_addr = self.select_target_node(url, known_nodes)
                     if target_addr is None:
                         break
-                    pending_recv[url] = 1
+                    pending_recv[url] = time.time() + 0.5
 
                 message = pickle.dumps((url, self.address))
-                self.logger.debug(f"Sending {url} to {target_addr}")
                 
                 if not target_addr in connected:
                     connect_router(comm_sock, target_addr)
