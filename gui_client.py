@@ -16,9 +16,10 @@ def create_chord_client(port, m):
     pipe = zpipe(context)
 
     client = ScrapChordClient(port, m, pipe[0])
-    Thread(target=client.run, daemon=True).start()
+    t = Thread(target=client.run, daemon=True)
+    t.start()
 
-    return pipe[1]
+    return t, pipe[1]
 
 
 if __name__ == "__main__":
@@ -30,17 +31,19 @@ if __name__ == "__main__":
     show_urls_found = st.sidebar.checkbox(value=True, label="Show urls found")
     st.sidebar.markdown("""#### Developed by CoolCows""")
 
-    pipe = create_chord_client(int(port), int(bits))
+    t, chord_sock = create_chord_client(int(port), int(bits))
     urls_req = st.text_input("Enter urls for scraping")
     start = st.button("Start")
     if start:
-        pipe.send_pyobj(urls_req)
+        chord_sock.send_pyobj(urls_req)
 
-    poller = zmq.Poller()
-    register_socks(poller, pipe)
-    ready = dict(poller.poll(timeout=1000))
-    if pipe in ready:
-        url, html, url_list = pipe.recv_pyobj()
+    chord_sock.rcvtimeo = 2000
+    while t.isAlive():
+        try:
+            url, html, url_list = chord_sock.recv_pyobj()
+        except zmq.error.Again:
+            continue
+
         st.markdown("URL")
         st.text(url)
 
@@ -49,3 +52,4 @@ if __name__ == "__main__":
         if show_urls_found:
             st.markdown("URLs found")
             st.text(url_list)
+        break

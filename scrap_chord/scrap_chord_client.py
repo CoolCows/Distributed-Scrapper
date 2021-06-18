@@ -62,6 +62,8 @@ class ScrapChordClient:
             if self.usr_send_pipe[0] in socks:
                 url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 self.logger.info(f"Recieved {url}: URLS({len(url_list)}") # Print url and first 100 chars from html
+                if self.gui_sock is not None:
+                    self.gui_sock.send_pyobj((url, html, url_list))
 
             elif sys.stdin.fileno() in socks:
                 for line in sys.stdin:
