@@ -64,7 +64,7 @@ class ScrapChordNode(ChordNode):
         push_pull.start()
 
         if self.visible:
-            self.logger.debug("Network discovery is ON")
+            self.logger.info("Network discovery is ON")
             Thread(
                 target=net_beacon,
                 args=(self.address[1], CHORD_BEACON_PORT, CODE_WORD_CHORD),
@@ -101,20 +101,20 @@ class ScrapChordNode(ChordNode):
                     comm_sock.send_multipart([idx, REP_CLIENT_NODE, node_addr_byte])
             
             elif self.chord_scrap_pipe[0] in socks:
-                self.logger.debug("CliCom: Recieved work forwarding it to client")
                 url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj()
+                self.logger.debug(f"CliCom: Forwarding {url} to client")
                 for addr in request_table[url]:
                     idx = router_table[addr]
                     message = pickle.dumps((url, html, url_list))
                     comm_sock.send_multipart([idx, REP_CLIENT_INFO, message])
                 request_table[url] = set()
+            else:
+                self.logger.debug("CliCom: Poll timeout")
 
         self.logger.debug("CliCom: Closing")
     
     def url_succesor(self, url:str) -> Tuple[str, int]:
         url_id = get_id(url) % (2 ** self.bits)
-        self.logger.debug(f"Looing for successor of {url_id}")
-        # return self.address
         n = self.find_successor(url_id)
         if n is not None:
             return n[1]
@@ -128,7 +128,7 @@ class ScrapChordNode(ChordNode):
         poll = zmq.Poller()
         register_socks(poll, self.chord_scrap_pipe[1], self.push_scrap_pipe[1])
         while self.online:
-            socks = dict(poll.poll(500))
+            socks = dict(poll.poll(1000))
             connected_to_any_scraper = time.time() < self.last_pull
 
             if self.chord_scrap_pipe[1] in socks:
@@ -140,14 +140,12 @@ class ScrapChordNode(ChordNode):
                     html, url_list =  self.cache[url]
                     self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                     continue
-                self.logger.debug(f"ScrapCom: Request to scrap url {url}")
                 pending_messages.add(url)
                 # connec to scraper
                 if not connected_to_any_scraper:
                     if not self.connect_to_scraper(last_connected):
                         self.logger.debug(f"ScrapCom: cant connect to any scraper")
                         continue
-                self.logger.debug(f"ScrapCom: Sent pyobj for work")
                 self.push_scrap_pipe[1].send_pyobj(url)
 
             elif self.push_scrap_pipe[1] in socks:
@@ -155,7 +153,6 @@ class ScrapChordNode(ChordNode):
                 url, html, url_list = self.push_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
                 if url in self.cache:
                     continue
-                self.logger.debug(f"ScrapCom: work done with {url}")
                 # remove from pending
                 pending_messages.remove(url)
                 # store object
@@ -168,6 +165,9 @@ class ScrapChordNode(ChordNode):
                     self.logger.debug(f"ScrapCom: Resending old mesages")
                     for url in pending_messages:
                         self.push_scrap_pipe[1].send_pyobj(url) 
+            else:
+                self.logger.debug("ScrapCom is iddle")
+                time.sleep(0.5)
         
         self.logger.debug("ScrapComm: Closing ...")
     
@@ -184,14 +184,15 @@ class ScrapChordNode(ChordNode):
         while self.online:
             socks = dict(poller.poll(1500))
             if self.push_scrap_pipe[0] in socks:
-                self.logger.debug("PushPull: Recieved workrding, forwarding")
                 request_url = self.push_scrap_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 push_sock.send_pyobj(request_url)
-            if pull_sock in socks:
-                self.logger.debug("PushPull: Recieved work completed, forwarding")
+            elif pull_sock in socks:
                 obj = pull_sock.recv_pyobj()
                 self.push_scrap_pipe[0].send_pyobj(obj)
                 self.update_last_pull(time.time() + TIMEOUT_WORK*MAX_IDDLE)
+            else:
+                self.logger.debug("PushPull is iddle")
+                time.sleep(1)
 
         self.logger.debug("PushPull: Closing ...")
     

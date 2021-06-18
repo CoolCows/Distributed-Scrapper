@@ -104,14 +104,11 @@ class Scraper:
         pull_sock.rcvtimeo = (TIMEOUT_WORK * MAX_IDDLE) * 1000
         while True: 
             try:
-                self.logger.debug(f"WorkerThread({thread_id}): waiting for work")
                 url = pull_sock.recv_pyobj()
             except zmq.error.Again:
                 break
-            self.logger.debug(f"WorkerThread({thread_id}): working ...")
             html, urls = extract_html(url, self.logger)
             push_sock.send_pyobj((url, html, urls))
-            self.logger.debug(f"WorkerThread({thread_id}): pushed work")
         
         self.logger.debug(f"WorkerThread({thread_id}): closing.")
         pull_sock.close()

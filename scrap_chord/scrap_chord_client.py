@@ -2,7 +2,7 @@ import logging
 import time
 from requests.api import request
 from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM
-from scrap_chord.util import add_search_tree, add_to_dict, in_between, parse_requests, remove_back_slashes, update_search_trees
+from scrap_chord.util import add_search_tree, in_between, parse_requests, remove_back_slashes, update_search_trees
 import sys
 import pickle
 from threading import  Thread
