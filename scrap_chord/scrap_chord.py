@@ -1,13 +1,13 @@
 import logging
 import pickle
 import random
-from scraper.scraper_const import MAX_IDDLE, TIMEOUT_WORK
+from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM, TIMEOUT_WORK
 from threading import Lock, Thread
 import time
 from typing import Tuple
 from sortedcontainers.sortedset import SortedSet
 
-from utils.tools import address_to_string, connect_router, find_nodes, get_id, get_router, net_beacon, parse_address, recieve_multipart_timeout, recv_from_router, register_socks, zpipe
+from utils.tools import address_to_string, connect_router, find_nodes, get_id, get_router, net_beacon, parse_address, register_socks, zpipe
 import zmq.sugar as zmq
 from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, CODE_WORD_SCRAP, REP_CLIENT_INFO, REP_CLIENT_NODE, REP_SCRAP_ACK_CONN, REP_SCRAP_ASOC_YES, REQ_SCRAP_ACK, REQ_SCRAP_ASOC, SCRAP_BEACON_PORT
 from pychord import ChordNode
@@ -30,7 +30,7 @@ class ScrapChordNode(ChordNode):
         logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG)
         self.logger = logging.getLogger("scrapkord")
 
-    def run(self, addr:str=""):
+    def run(self, addr:str = "", mss_per_thread:int = 30):
         self.online = True
         self.logger.info(f"ScrapKord({self.node_id}) running on {self.address[0]}:{self.address[1]}")
         
@@ -55,7 +55,7 @@ class ScrapChordNode(ChordNode):
 
         base_routine = Thread(target=self.start_chord_base_routine, daemon=True)
         comm_client = Thread(target=self.communicate_with_client)
-        comm_scrap = Thread(target=self.communicate_with_scraper)
+        comm_scrap = Thread(target=self.communicate_with_scraper, args=(mss_per_thread, ))
         push_pull = Thread(target=self.push_pull_work)
         
         base_routine.start()
@@ -136,11 +136,13 @@ class ScrapChordNode(ChordNode):
             return n[1]
         return self.address
                 
-    def communicate_with_scraper(self):
+    def communicate_with_scraper(self, messages_per_thread):
         self.logger.debug("CommScrap: Running")
         pending_messages = SortedSet()
         last_connected = []
+        
         scrap_conns = 0
+        rejection_time = 0
 
         poll = zmq.Poller()
         register_socks(poll, self.chord_scrap_pipe[1], self.push_scrap_pipe[1])
@@ -190,10 +192,12 @@ class ScrapChordNode(ChordNode):
                         self.push_scrap_pipe[1].send_pyobj(url)
                 else:
                     scrap_conns = 0
-            elif connected_to_any_scraper and len(pending_messages) > scrap_conns*30:
+            elif connected_to_any_scraper and time.time() > rejection_time and len(pending_messages) > scrap_conns*messages_per_thread:
                 self.logger.debug(f"ScrapCom: Looking for more suport from scrapers{(scrap_conns, len(pending_messages))}")
                 if self.connect_to_other_scraper():
                     scrap_conns += 1
+                else:
+                    rejection_time = time.time() + TIMEOUT_COMM*MAX_IDDLE*2
             else:
                 pass
                 # self.logger.debug("ScrapCom is iddle")
