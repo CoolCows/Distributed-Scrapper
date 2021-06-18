@@ -13,6 +13,8 @@
 
 * Depurar comunicaciones intensamente:
     - Probar que 2 nodos chord se hagan join correctamente, que pasa si se le hace join a un nodo que no existe
+    - realizar el join en medio de un pedido 
+    - utilizar las estructuras para aplicar la replicacion
     - Probar que la replicacion funcione una vez implementada
 * Agregar el scrapeo en profundidad, chequear que el scraping funcione en talla
 * Una interfaz visual medio boba puede ayudar

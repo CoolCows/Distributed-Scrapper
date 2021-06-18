@@ -61,7 +61,7 @@ class ScrapChordClient:
             socks = dict(poller.poll(1000))
             if self.usr_send_pipe[0] in socks:
                 url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                self.logger.info(f"Recieved {url}: URLS({len(url_list)}") # Print url and first 100 chars from html
+                self.logger.info(f"Recieved {url}: URLS({len(url_list)})") # Print url and first 100 chars from html
                 if self.gui_sock is not None:
                     self.gui_sock.send_pyobj((url, html, url_list))
 
@@ -132,7 +132,8 @@ class ScrapChordClient:
                     _, target_addr = self.select_target_node(url, known_nodes)
                     if target_addr is None:
                         break
-                    pending_recv[url] = time.time() + 0.5
+                    for urlx in pending_recv:
+                        pending_recv[urlx] = time.time() + 0.5
 
                 message = pickle.dumps((url, self.address))
                 
