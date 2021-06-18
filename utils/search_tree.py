@@ -44,3 +44,6 @@ class SearchTree():
                 if self._depths[node] != 1:
                     return False
         return True
+    
+    def __repr__(self) -> str:
+        return f"SearchTree({self.root}, {self._depths[self.root]})"

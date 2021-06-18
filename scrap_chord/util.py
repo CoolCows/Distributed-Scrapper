@@ -1,5 +1,6 @@
 import time
 from typing import List
+from utils.tools import get_id
 
 from sortedcontainers.sortedset import SortedSet
 from utils.search_tree import SearchTree
@@ -32,12 +33,30 @@ def parse_requests(command:str):
         requests.append((arg_1, arg_2))
     return requests
 
+def select_target_node(url, known_nodes, bits): 
+    if len(known_nodes) == 1:
+            return (known_nodes[0][0], (known_nodes[0][1][0], known_nodes[0][1][1] + 1))
+    url_id = get_id(url) % (2 ** bits)
+    lwb_id, _ = known_nodes[-1]
+    for node_id, addr in known_nodes:
+        if in_between(bits, url_id, lwb_id + 1, node_id):
+            return (node_id, (addr[0], addr[1] + 1))
+        lwb_id = node_id
+    
+    raise Exception("A node must be always found")
+
+def reset_times(url, known_nodes, pending_req, value, bits):
+    idx, _ = select_target_node(url, known_nodes, bits)
+    pending_req[url] = value
+    for urlx in pending_req:
+        if idx == select_target_node(urlx, known_nodes, bits):
+            pending_req[urlx] = value
+
 def remove_back_slashes(url:str) -> str:
     index = len(url) - 1
     while index >= 0 and url[index] == "/":
         index -= 1
     return url[:index + 1]
-
 
 def add_search_tree(search_trees:list, url:str, depht):
     st = SearchTree(url, depht)
@@ -62,9 +81,3 @@ def update_search_trees(search_trees:List[SearchTree], url:str, url_list:set) ->
 # a = {"a": 1}
 # print(len(a))
 # del a["a"]
-# print(len(a))
-
-def a(*b):
-    print(b)
-
-a(1,2,3)
