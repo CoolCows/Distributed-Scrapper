@@ -18,5 +18,5 @@
     - Probar que la replicacion funcione una vez implementada
 * Agregar el scrapeo en profundidad, chequear que el scraping funcione en talla
     - Que no se escrapeen cosas repetidas, no recibir 2 veces una misma url
-    - Evitar el mareo sonso ese que tiene
+    - Un nodo se queda sonso despues de que un cliente se le desconecta, y cuando se reconecta. Con misma direccion.
 * Una interfaz visual medio boba puede ayudar
