@@ -1,3 +1,4 @@
+from scrap_chord.util import remove_back_slashes
 import requests
 from requests.exceptions import RequestException, MissingSchema
 from bs4 import BeautifulSoup
@@ -23,7 +24,7 @@ def extract_html(url, logger):
                 continue
         else:
             l = url + l
-        urls.add(l)
+        urls.add(remove_back_slashes(l))
 
     return reqs.text, urls
 

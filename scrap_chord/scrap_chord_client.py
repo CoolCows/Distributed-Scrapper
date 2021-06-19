@@ -16,7 +16,7 @@ from utils.tools import address_to_string, connect_router, find_nodes, get_id, g
 
 
 class ScrapChordClient:
-    def __init__(self, port, m, gui_sock = None) -> None:
+    def __init__(self, port, m, gui_sock:zmq.Socket = None) -> None:
         self.address = (get_source_ip(), port)
         
         self.context = zmq.Context()
@@ -137,11 +137,11 @@ class ScrapChordClient:
                 idx, target_addr = self.target_node(url, known_nodes)
                 if time.time() - 2*TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
                     self.logger.debug(f"Removing {idx} due to delayed response")
+                    reset_times(url, known_nodes, pending_recv, time.time() + 0.5, self.bits)
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
                     _, target_addr = self.target_node(url, known_nodes)
                     if target_addr is None:
                         break
-                    reset_times(url, known_nodes, pending_recv, time.time() + 0.5, self.bits)
 
                 message = pickle.dumps((url, self.address))
                 
@@ -150,7 +150,6 @@ class ScrapChordClient:
                     connected.add(target_addr)
                 comm_sock.send_multipart([address_to_string(target_addr).encode(), message])
 
-                #time.sleep(1)
         
         comm_sock.close()
         self.logger.info("Comunication with chord closing")

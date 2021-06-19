@@ -1,8 +1,6 @@
-import time
 from typing import List
 from utils.tools import get_id
 
-from sortedcontainers.sortedset import SortedSet
 from utils.search_tree import SearchTree
 
 
@@ -27,7 +25,7 @@ def parse_requests(command:str):
         try:
             arg_2 = int(args[index + 1])
             index += 1
-        except (IndexError, ValueError) as exception:
+        except (IndexError, ValueError):
             arg_2 = 1
         index += 1
         requests.append((arg_1, arg_2))
@@ -74,7 +72,8 @@ def update_search_trees(search_trees:List[SearchTree], url:str, url_list:set) ->
 
     for i in range(len(remove)):
         j = len(remove) - 1 - i
-        search_trees.pop(j)
+        rm = remove[j]
+        search_trees.pop(rm)
 
     return pending
 
