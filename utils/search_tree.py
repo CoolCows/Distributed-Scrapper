@@ -6,6 +6,7 @@ class SearchTree():
         self._total_urls = 1
         self._updated = set()
         self.completed = False
+        self.unexplored = []
     
     def pending_update(self, key):
         return key in self._depths and key not in self._updated
@@ -13,25 +14,33 @@ class SearchTree():
     def update(self, url, url_list):
         self._updated.add(url)
         if self._depths[url] == 1:
-            self.completed = self.search_tree_completed()
+            self.unexplored = self.search_tree_completed()
+            self.completed = len(self.unexplored) == 0
             return []
 
         pending = []
-        self._graph[url] = url_list
         for urlx in url_list:
             if not urlx in self._depths:
                 self._depths[urlx] = self._depths[url] - 1
                 pending.append(urlx)
         
+        if len(pending) == 0:
+            self._depths[url] = 1
+            self.unexplored = self.search_tree_completed()
+            self.completed = len(self.unexplored) == 0
+            return []
+
+        self._graph[url] = url_list
         self._total_urls += len(pending)
         return pending
     
     def search_tree_completed(self) -> bool:
+        if self._depths[self.root] == 1:
+            return []
+
         queue = [self.root]
         visited = set()
-        if self._depths[self.root] == 1:
-            return True 
-        
+        unexplored = []
         for node in queue:
             queue.pop(0)
             if node in visited:
@@ -42,8 +51,9 @@ class SearchTree():
                     queue.append(child)
             except KeyError:
                 if self._depths[node] != 1:
-                    return False
-        return True
+                    unexplored.append(node)
+
+        return unexplored
     
     def __repr__(self) -> str:
-        return f"SearchTree({self.root}, {self._depths[self.root]})"
+        return f"SearchTree({self.root}, {self._depths[self.root]}, {self.unexplored})"
