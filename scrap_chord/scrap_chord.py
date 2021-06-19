@@ -280,6 +280,12 @@ class ScrapChordNode(ChordNode):
         comm_sock.rcvtimeo = 1500
         connected = set()
 
+        if random.randint(1, 5) == 1:
+            other_addrs = find_nodes(
+                port=SCRAP_BEACON_PORT, code_word=CODE_WORD_SCRAP, tolerance=1, all=True
+            )
+            self.scraper_list += [scrap_addr for scrap_addr in other_addrs if scrap_addr not in self.scraper_list]
+
         info = pickle.dumps(self.address)
         for scrap_addr in self.scraper_list:
             if not scrap_addr  in connected:
