@@ -162,8 +162,8 @@ class ScrapChordNode(ChordNode):
                 if url in pending_messages:
                     continue
                 self.logger.debug(f"CliCom: Forwarding url to scraper")
-                if url in self.cache:
-                    html, url_list =  self.cache[url]
+                if self.storage.has_key(url): #url in self.cache:
+                    html, url_list =  self.storage.get_key(url)
                     self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                     continue
                 pending_messages.add(url)
@@ -179,7 +179,7 @@ class ScrapChordNode(ChordNode):
             elif self.push_scrap_pipe[1] in socks:
                 # rcv object
                 url, html, url_list = self.push_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
-                if url in self.cache:
+                if self.storage.has_key(url):
                     continue
                 # remove from pending
                 try:
@@ -187,7 +187,8 @@ class ScrapChordNode(ChordNode):
                 except ValueError:
                     pass
                 # store object
-                self.cache[url] = (html, url_list) # TODO: Where to save it so data can be replicated (to successor)
+                # self.cache[url] = (html, url_list) # TODO: Where to save it so data can be replicated (to successor)
+                self.storage.insert_pair(url, (html, url_list))
                 # forward to comm client
                 self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                 
@@ -230,14 +231,10 @@ class ScrapChordNode(ChordNode):
             if self.push_scrap_pipe[0] in socks:
                 request_url = self.push_scrap_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 push_sock.send_pyobj(request_url)
-            elif pull_sock in socks:
+            if pull_sock in socks:
                 obj = pull_sock.recv_pyobj(zmq.NOBLOCK)
                 self.push_scrap_pipe[0].send_pyobj(obj)
                 self.update_last_pull(time.time() + TIMEOUT_WORK*MAX_IDDLE)
-            else:
-                # self.logger.debug("PushPull is iddle")
-                # time.sleep(1)
-                pass
 
         self.logger.debug("PushPull: Closing ...")
     
