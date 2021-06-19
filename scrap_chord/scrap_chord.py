@@ -14,7 +14,7 @@ from pychord import ChordNode
 
 
 class ScrapChordNode(ChordNode):
-    def __init__(self, port, m, visible=True) -> None:
+    def __init__(self, port, m, visible:int=1) -> None:
         super().__init__(m, port)
         self.online = False
         self.visible = visible
@@ -114,7 +114,7 @@ class ScrapChordNode(ChordNode):
                     message = pickle.dumps((url_request, url_node_addr))
                     comm_sock.send_multipart([idx, REP_CLIENT_NODE, message])
             
-            elif self.chord_scrap_pipe[0] in socks:
+            if self.chord_scrap_pipe[0] in socks:
                 url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 self.logger.debug(f"CliCom: ({forwards_count})Forwarding url result to client")
                 forwards_count += 1
@@ -165,6 +165,7 @@ class ScrapChordNode(ChordNode):
                 if not connected_to_any_scraper:
                     if not self.connect_to_scraper(last_connected):
                         self.logger.debug(f"ScrapCom: cant connect to any scraper")
+                        rejection_time = time.time() + TIMEOUT_COMM*MAX_IDDLE
                         continue
                 scrap_conns = 1
                 self.push_scrap_pipe[1].send_pyobj(url)
@@ -184,13 +185,14 @@ class ScrapChordNode(ChordNode):
                 # forward to comm client
                 self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                 
-            elif not connected_to_any_scraper and len(pending_messages) > 0:
+            elif not connected_to_any_scraper and time.time() > rejection_time and len(pending_messages) > 0:
                 if self.connect_to_scraper(last_connected):
                     scrap_conns = 1
                     self.logger.debug(f"ScrapCom: Resending old mesages")
                     for url in pending_messages:
                         self.push_scrap_pipe[1].send_pyobj(url)
                 else:
+                    rejection_time = time.time() + TIMEOUT_COMM*MAX_IDDLE
                     scrap_conns = 0
             elif connected_to_any_scraper and time.time() > rejection_time and len(pending_messages) > scrap_conns*messages_per_thread:
                 self.logger.debug(f"ScrapCom: Looking for more suport from scrapers{(scrap_conns, len(pending_messages))}")

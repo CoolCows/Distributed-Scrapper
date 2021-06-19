@@ -150,7 +150,6 @@ class ScrapChordClient:
                     connected.add(target_addr)
                 comm_sock.send_multipart([address_to_string(target_addr).encode(), message])
 
-                #time.sleep(1)
         
         comm_sock.close()
         self.logger.info("Comunication with chord closing")
