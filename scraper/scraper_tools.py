@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 def extract_html(url, logger):
     try:
-        reqs = requests.get(url)
+        reqs = requests.get(url, timeout=3)
     except (RequestException, ValueError) as exception:
         if isinstance(exception, MissingSchema):
             return extract_html("http://" + url, logger)
