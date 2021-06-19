@@ -26,6 +26,11 @@ class ScrapChordNode(ChordNode):
 
         self.push_scrap_pipe = zpipe(self.context)
         self.chord_scrap_pipe = zpipe(self.context)
+
+        self.com_client_last_seen = 0
+        self.com_worker_last_seen = 0
+        self.com_scraper_last_seen = 0
+
         
         logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG)
         self.logger = logging.getLogger("scrapkord")
@@ -81,6 +86,7 @@ class ScrapChordNode(ChordNode):
                 print(self.find_successor(int(inp[1])))
             if inp[0] == "of":
                 self.online = False
+                self.logger.info("Exiting")
                 exit(1)
         # self.communicate_with_client()
         # self.communicate_with_scraper()
@@ -215,6 +221,8 @@ class ScrapChordNode(ChordNode):
         push_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 2}")
         pull_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 3}")
         
+        # push_sock.hwm = 50
+
         poller = zmq.Poller()
         register_socks(poller, pull_sock, self.push_scrap_pipe[0])
         while self.online:
