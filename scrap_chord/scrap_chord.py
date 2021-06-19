@@ -18,7 +18,7 @@ class ScrapChordNode(ChordNode):
         super().__init__(m, port)
         self.online = False
         self.visible = visible
-        self.cache = dict()
+        # self.cache = dict()
         self.scraper_list = []
         
         self.last_pull = 0
@@ -40,7 +40,7 @@ class ScrapChordNode(ChordNode):
         self.logger.info(f"ScrapKord({self.node_id}) running on {self.address[0]}:{self.address[1]}")
         
         if addr != "":
-            self.join(get_id(addr), parse_address(addr))
+            self.join(get_id(addr, self.bits), parse_address(addr))
         else:
             net_nodes = find_nodes(
                 port=CHORD_BEACON_PORT,
@@ -50,7 +50,7 @@ class ScrapChordNode(ChordNode):
             )
             if len(net_nodes) > 0:
                 for node_addr in net_nodes:
-                    self.add_node((get_id(address_to_string(node_addr)) % (2**self.bits), (node_addr)))
+                    self.add_node((get_id(address_to_string(node_addr), self.bits)))
                     succ_node = self.pop_node(0)
                     self.join(succ_node[0], succ_node[1])
                     self.logger.debug(f"Joined to {succ_node}")
@@ -136,7 +136,7 @@ class ScrapChordNode(ChordNode):
         self.logger.debug("CliCom: Closing")
     
     def url_succesor(self, url:str) -> Tuple[str, int]:
-        url_id = get_id(url) % (2 ** self.bits)
+        url_id = get_id(url, self.bits)
         n = self.find_successor(url_id)
         if n is not None:
             return n[1]
@@ -162,8 +162,8 @@ class ScrapChordNode(ChordNode):
                 if url in pending_messages:
                     continue
                 self.logger.debug(f"CliCom: Forwarding url to scraper")
-                if self.storage.has_key(url): #url in self.cache:
-                    html, url_list =  self.storage.get_key(url)
+                if self.storage.has_key(get_id(url, self.bits)): #url in self.cache:
+                    html, url_list =  self.storage.get_key(get_id(url, self.bits))
                     self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                     continue
                 pending_messages.add(url)
@@ -179,7 +179,7 @@ class ScrapChordNode(ChordNode):
             elif self.push_scrap_pipe[1] in socks:
                 # rcv object
                 url, html, url_list = self.push_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
-                if self.storage.has_key(url):
+                if self.storage.has_key(get_id(url, self.bits)):
                     continue
                 # remove from pending
                 try:

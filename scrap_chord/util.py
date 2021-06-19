@@ -34,7 +34,7 @@ def parse_requests(command:str):
 def select_target_node(url, known_nodes, bits): 
     if len(known_nodes) == 1:
             return (known_nodes[0][0], (known_nodes[0][1][0], known_nodes[0][1][1] + 1))
-    url_id = get_id(url) % (2 ** bits)
+    url_id = get_id(url, bits)
     lwb_id, _ = known_nodes[-1]
     for node_id, addr in known_nodes:
         if in_between(bits, url_id, lwb_id + 1, node_id):

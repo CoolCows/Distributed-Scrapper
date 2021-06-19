@@ -122,6 +122,6 @@ def parse_address(address) -> Tuple[str, int]:
 def address_to_string(address:Tuple[str, int]) -> str:
     return f"{address[0]}:{address[1]}"
 
-def get_id(addr:str) -> int:
+def get_id(addr:str, bits:int) -> int:
     hexhash = sha1(addr.encode()).hexdigest()
-    return int(hexhash, 16)
+    return int(hexhash, 16) % 2**bits

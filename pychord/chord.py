@@ -153,7 +153,7 @@ class ChordNode:
         self.reply.bind("tcp://*:%s" % port)
 
         self.bits = m
-        self.node_id = get_id(address_to_string(self.address)) % 2**self.bits
+        self.node_id = get_id(address_to_string(self.address), self.bits)
         self.finger = [None for _ in range(m + 1)]
         self.successor_list = SortedSet(
             [],
