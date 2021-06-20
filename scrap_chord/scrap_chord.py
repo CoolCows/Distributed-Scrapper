@@ -292,7 +292,7 @@ class ScrapChordNode(ChordNode):
             if len(last_connected) > 0:
                 x = last_connected.pop(-1)
             else:
-                x = random.randint(0, len(self.scraper_list) - 1)
+                x = random.randint(0, len(last_connected) - 1)
 
             addr = pending[x]
 
