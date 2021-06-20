@@ -1,3 +1,6 @@
+from logging import raiseExceptions
+
+
 class SearchTree():
     def __init__(self, root, depth:int) -> None:
         self.root = root
@@ -11,7 +14,7 @@ class SearchTree():
     def pending_update(self, key):
         return key in self._depths and key not in self._updated
 
-    def update(self, url, url_list):
+    def update(self, url, url_set):
         self._updated.add(url)
         if self._depths[url] == 1:
             self.unexplored = self.search_tree_completed()
@@ -19,7 +22,7 @@ class SearchTree():
             return []
 
         pending = []
-        for urlx in url_list:
+        for urlx in url_set:
             if not urlx in self._depths:
                 self._depths[urlx] = self._depths[url] - 1
                 pending.append(urlx)
@@ -30,7 +33,7 @@ class SearchTree():
             self.completed = len(self.unexplored) == 0
             return []
 
-        self._graph[url] = url_list
+        self._graph[url] = url_set
         self._total_urls += len(pending)
         return pending
     

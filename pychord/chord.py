@@ -34,7 +34,7 @@ class DataStorage:
         Insert an iterable of key-value pairs
         """
         for pair in pairs:
-            self.insert_pair(*pair)
+            self.insert_pair(pair)
         
     def has_key(self, key) -> bool:
         """
@@ -144,6 +144,9 @@ class DataStorage:
         self._dict = {}
         self.lock.release()
         return keys
+    
+    def item_count(self) -> int:
+        return len(self._dict)
 
 class ChordNode:
     def __init__(self, m, port) -> None:
@@ -153,7 +156,7 @@ class ChordNode:
         self.reply.bind("tcp://*:%s" % port)
 
         self.bits = m
-        self.node_id = get_id(address_to_string(self.address)) % 2**self.bits
+        self.node_id = get_id(address_to_string(self.address), self.bits)
         self.finger = [None for _ in range(m + 1)]
         self.successor_list = SortedSet(
             [],

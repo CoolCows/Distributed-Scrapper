@@ -129,8 +129,7 @@ class ScrapChordClient:
             for url in url_list:
                 if url in self.local_cache:
                     (html, url_set) = self.local_cache[url]
-                    url_list2 = [*update_search_trees(search_trees, url, url_set)] #if urlx not in pending_recv]
-                    print(url_list2, url, len(url_set))
+                    url_list2 = [urlx for urlx in update_search_trees(search_trees, url, url_set) if urlx not in pending_recv] #
                     url_list += url_list2
                     self.usr_send_pipe[1].send_pyobj((url, html, url_set))
                     continue
@@ -179,7 +178,7 @@ class ScrapChordClient:
     def add_node(self, known_nodes:SortedSet, *nodes_addr):
         for addr in nodes_addr:
             addr_hash = f"{addr[0]}:{addr[1]}"
-            idx = get_id(addr_hash) % (2 ** self.bits)
+            idx = get_id(addr_hash, self.bits)
             known_nodes.add((idx, addr))
 
     def get_chord_nodes(self):

@@ -101,7 +101,7 @@ class Scraper:
         push_sock.connect(f"tcp://{ip}:{port + 3}")
         
         # push_sock.hwm = 30
-        push_sock.linger = 500
+        push_sock.linger = 0
 
         pull_sock.rcvtimeo = (TIMEOUT_WORK*MAX_IDDLE) * 1000
 

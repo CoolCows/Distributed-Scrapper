@@ -34,7 +34,7 @@ def parse_requests(command:str):
 def select_target_node(url, known_nodes, bits): 
     if len(known_nodes) == 1:
             return (known_nodes[0][0], (known_nodes[0][1][0], known_nodes[0][1][1] + 1))
-    url_id = get_id(url) % (2 ** bits)
+    url_id = get_id(url, bits)
     lwb_id, _ = known_nodes[-1]
     for node_id, addr in known_nodes:
         if in_between(bits, url_id, lwb_id + 1, node_id):
@@ -63,12 +63,12 @@ def add_search_tree(search_trees:list, url:str, depht):
     st = SearchTree(url, depht)
     search_trees.append(st)
 
-def update_search_trees(search_trees:List[SearchTree], url:str, url_list:set) -> set:
+def update_search_trees(search_trees:List[SearchTree], url:str, url_set:set) -> set:
     pending = set()
     remove = []
     for i, st in enumerate(search_trees):
         if st.pending_update(url):
-            for urlx in st.update(url, url_list):
+            for urlx in st.update(url, url_set):
                 pending.add(urlx)
             if st.completed:
                 remove.append(i)
