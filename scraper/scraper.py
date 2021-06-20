@@ -96,6 +96,7 @@ class Scraper:
         ip, port = addr
         pull_sock = self.ctx.socket(zmq.PULL)
         push_sock = self.ctx.socket(zmq.PUSH)
+        
         self.logger.info(f"WorkerThread({thread_id}): connecting to {ip}: {port + 2}, {port + 3}")
         pull_sock.connect(f"tcp://{ip}:{port + 2}")
         push_sock.connect(f"tcp://{ip}:{port + 3}")
