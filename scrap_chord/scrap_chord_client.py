@@ -102,13 +102,13 @@ class ScrapChordClient:
                     add_search_tree(search_trees, url, depth)
             
             elif comm_sock in socks:
-                _, flag, message = comm_sock.recv_multipart()
+                _, flag, message = comm_sock.recv_multipart(zmq.NOBLOCK)
                 if flag == REP_CLIENT_NODE:
                     (url_request, next_node) = pickle.loads(message)
                     connection_lost += 1
                     self.add_node(known_nodes, next_node)
                     url_list = [url_request]
-                    reset_times(url, known_nodes, pending_recv, connection_lost*(time.time() + 0.6),  self.bits) 
+                    reset_times(url_request, known_nodes, pending_recv, connection_lost*(time.time() + 0.6),  self.bits) 
                 
                 if flag == REP_CLIENT_INFO:
                     url, html, url_set = pickle.loads(message)
@@ -122,7 +122,7 @@ class ScrapChordClient:
                     url_set = update_search_trees(search_trees, url, url_set)
                     url_list = [*url_set]
             else:
-                self.logger.debug(f"pending: {len([*pending_recv])}, st: {search_trees})")
+                self.logger.debug(f"pending: {len([*pending_recv])}, cl: {connection_lost} st: {search_trees})")
                 url_list = [*pending_recv]
             
             kn_len = len(known_nodes)
@@ -142,7 +142,7 @@ class ScrapChordClient:
                     self.logger.debug(f"Removing {idx} due to delayed response")
                     reset_times(url, known_nodes, pending_recv, time.time() + 0.5, self.bits)
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
-                    _, new_target_addr = self.target_node(url, known_nodes)
+                    idx, new_target_addr = self.target_node(url, known_nodes)
                     if target_addr is None:
                         self.online = False
                         break

@@ -146,13 +146,13 @@ class ScrapChordNode(ChordNode):
                     router_table[client_addr] = idx
                     self.chord_scrap_pipe[0].send_pyobj(url_request)
                 else:
-                    self.logger.debug(f"CliCom: Rejecting url from client")
+                    self.logger.debug(f"CliCom: Rejecting url from client: proper node{get_id(address_to_string(url_node_addr), self.bits)}")
                     message = pickle.dumps((url_request, url_node_addr))
                     comm_sock.send_multipart([idx, REP_CLIENT_NODE, message])
 
             if self.chord_scrap_pipe[0] in socks:
                 url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                # self.logger.debug(f"CliCom: ({forwards_count})Forwarding url result to client")
+                self.logger.debug(f"CliCom: ({forwards_count})Forwarding url result to client")
                 forwards_count += 1
                 for addr in request_table[url]:
                     idx = router_table[addr]
@@ -191,7 +191,7 @@ class ScrapChordNode(ChordNode):
                 url = self.chord_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
                 if url in pending_messages:
                     continue
-                # self.logger.debug(f"CliCom: Forwarding url to scraper")
+                self.logger.debug(f"CliCom: Forwarding url to scraper")
                 if self.storage.has_key(get_id(url, self.bits)): #url in self.cache:
                     _, (html, url_list) =  self.storage.get_key(get_id(url, self.bits))
                     self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))

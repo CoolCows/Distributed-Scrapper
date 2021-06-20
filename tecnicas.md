@@ -12,6 +12,7 @@
 ## Falta
 * Que los nodos tengan un tiempo de visibilidad (que esten disponible para cierta cantidad de conexiones?)
 * Depurar comunicaciones intensamente:
+    - Apagar un nodo cuando deje de funcionar
     - Probar que 2 nodos chord se hagan join correctamente, que pasa si se le hace join a un nodo que no existe
     - realizar el join en medio de un pedido 
     - utilizar las estructuras para aplicar la replicacion
