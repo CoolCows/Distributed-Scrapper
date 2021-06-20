@@ -19,6 +19,8 @@ class SearchTree():
         if self._depths[url] == 1:
             self.unexplored = self.search_tree_completed()
             self.completed = len(self.unexplored) == 0
+            if self.completed:
+                print(f"Completed when depht = 1 on {url}")
             return []
 
         pending = []
@@ -30,7 +32,9 @@ class SearchTree():
         if len(pending) == 0:
             self._depths[url] = 1
             self.unexplored = self.search_tree_completed()
-            self.completed = len(self.unexplored) == 0
+            self.completed =  len(self.unexplored) == 0
+            if self.completed:
+                print(f"Completed when no more to explore on {url}")
             return []
 
         self._graph[url] = url_set
@@ -53,10 +57,27 @@ class SearchTree():
                 for child in self._graph[node]:
                     queue.append(child)
             except KeyError:
-                if self._depths[node] != 1:
+                if self._depths[node] > 1 or node not in self._updated:
                     unexplored.append(node)
 
+        # print(f"Unexplored: {len(unexplored)}")
         return unexplored
     
     def __repr__(self) -> str:
-        return f"SearchTree({self.root}, {self._depths[self.root]}, {self.unexplored})"
+        return f"SearchTree({self.root}, {self._depths[self.root]}, {self.completed}, {self.unexplored})"
+
+    def visual(self, caché, basic = False):
+        visual =  f"Search Tree Results{'(Completed)' if self.completed else ''}:\n"
+        visual += f"Scraped {self._total_urls} total urls.\n"
+        visual += f"Root: {self.root}\n"
+        visual += f"Max Depht: {self._depths[self.root]}\n"
+        
+        if basic:
+            return visual
+        
+        urls_html = dict()
+        for url in self._depths:
+            
+            urls_html[url] = caché[url][0]
+
+        return visual, urls_html

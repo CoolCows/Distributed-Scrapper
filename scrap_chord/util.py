@@ -65,20 +65,15 @@ def add_search_tree(search_trees:list, url:str, depht):
 
 def update_search_trees(search_trees:List[SearchTree], url:str, url_set:set) -> set:
     pending = set()
-    remove = []
-    for i, st in enumerate(search_trees):
+    completed = []
+    for st in search_trees:
         if st.pending_update(url):
             for urlx in st.update(url, url_set):
                 pending.add(urlx)
             if st.completed:
-                remove.append(i)
+                completed.append(st)
 
-    for i in range(len(remove)):
-        j = len(remove) - 1 - i
-        rm = remove[j]
-        search_trees.pop(rm)
-
-    return pending
+    return pending, completed
 
 # a = {"a": 1}
 # print(len(a))
