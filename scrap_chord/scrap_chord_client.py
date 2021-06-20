@@ -67,7 +67,7 @@ class ScrapChordClient:
                 if self.gui_sock is not None:
                     self.gui_sock.send_pyobj((url, html, url_list))
 
-            elif sys.stdin.fileno() in socks:
+            if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
                     client_request = parse_requests(line)
                     if len(client_request) != 0:
@@ -75,7 +75,7 @@ class ScrapChordClient:
                     break
                 self.logger.info("Input ready:")
             
-            elif self.gui_sock in socks:
+            if self.gui_sock in socks:
                 gui_request = self.gui_sock.recv_pyobj(zmq.NOBLOCK)
                 client_request = parse_requests(gui_request)
                 self.logger.debug(str(client_request))
