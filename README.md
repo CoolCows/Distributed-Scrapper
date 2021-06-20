@@ -27,3 +27,28 @@ Este nodo ofrece el servicio de scrapear en la red. Un nodo le pide sus servicio
 
 Este es un nodo especifico para comunicarse con nodos Chord Scraper: Los pedidos se envian a traves de este. Este nodo cuando se hace una busqueda en profundidad el solo se gestiona. Sabe que pedir para completar su trabajo.
 
+### Ejemplo
+
+Levantar 3 nodos chord, 3 nodos clientes, 3 nodos scraper:
+
+C 1 hace www.uci.cu 3
+
+C 2 hace www.uci.cu 3 (Se debe emparejar rapidamente con el primero) pues se accede a la cache
+
+Entra un SC 4 (Le deben empezar a tocar pedidos)
+
+C 3 hace evea.uh.cu 4
+
+Muere S 3 (La conexion se debe un poco lenta)
+
+Vuelve S 3 (Tras un tiempo)
+
+Entra un S 4
+
+Entra SC 5 (Le deben tocar pedidos)
+
+Muere C 2 (Los nodos chord deben parar de enviarle)
+
+Cerra nodos Chord uno por uno en intervalo de por medio de 10 segundos (La replicacion debe funcionar en bastante bien)
+
+Entra un C 4  y pide www.uci.cu 3 (Deber avanzar muy rapido, la mayoria de las url deben estar cacheadas)
