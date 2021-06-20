@@ -35,6 +35,7 @@ def net_beacon(node_port:int, beacon_port:int, code_word:str) -> NoReturn:
     while True:
         info, addr = beacon_socket.recvfrom(1024)
         if info == b"ping" + code_word:
+            print("Pong")
             beacon_socket.sendto(b"pong" + code_word + b"@" + port_byte, addr)
 
 def find_nodes(port:int, code_word:bytes, tolerance:int = 3, all:bool = False) -> List[Tuple[str, int]]:

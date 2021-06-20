@@ -64,7 +64,7 @@ class SearchTree():
         return unexplored
     
     def __repr__(self) -> str:
-        return f"SearchTree({self.root}, {self._depths[self.root]}, {self.completed}, {self.unexplored})"
+        return f"SearchTree({self.root}, {self._depths[self.root]}, {self.completed}, {len(self.unexplored)})"
 
     def visual(self, caché, basic = False):
         visual =  f"Search Tree Results{'(Completed)' if self.completed else ''}:\n"
@@ -76,7 +76,6 @@ class SearchTree():
             return visual
         
         urls_html = dict()
-        print([urlx for urlx in caché],len([urlx for urlx in caché]))
         for url in self._depths:
             urls_html[url] = caché[url][0]
 

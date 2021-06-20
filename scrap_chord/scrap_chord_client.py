@@ -76,7 +76,6 @@ class ScrapChordClient:
 
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
-                    print("STDIN", line)
                     if line.split()[0] == "ns":
                         print(known_nodes)
                         break
@@ -195,7 +194,6 @@ class ScrapChordClient:
             if len(known_nodes) == 0:
                 self.logger.info("No online chord nodes found")
                 return None, None
-
 
         return select_target_node(url, known_nodes, self.bits)
 
