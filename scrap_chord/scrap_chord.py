@@ -246,6 +246,7 @@ class ScrapChordNode(ChordNode):
                 )
                 if self.connect_to_other_scraper():
                     scrap_conns += 1
+                    rejection_time = time.time() + TIMEOUT_COMM*MAX_IDDLE
                 else:
                     rejection_time = time.time() + TIMEOUT_COMM*MAX_IDDLE*2
 
