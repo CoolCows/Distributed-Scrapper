@@ -39,11 +39,13 @@ if __name__ == "__main__":
         t, chord_sock = create_chord_client(int(port), int(bits))
         done = False
         chord_sock.send_pyobj(urls_req)
-        chord_sock.rcvtimeo = 5000
+        chord_sock.rcvtimeo = 8000
         count = 0
+        key = 0
         while t.is_alive():
             try:
                 obj = chord_sock.recv_pyobj()
+                key += 1
                 if len(obj) == 3:
                     url, html, url_list = obj
                     if not show_html and not show_urls_found:
@@ -59,17 +61,24 @@ if __name__ == "__main__":
                         st.text("\n".join(urlx for urlx in url_list))
                 elif len(obj) == 2 and show_search_tree:
                     visual, url_html = obj
-                    st.markdown("Serach Tree Completed")
+                    st.markdown("Search Tree Completed")
                     st.text(visual)
                     done = True
-                    val = st.selectbox("Select url to display html", options=([urlx for urlx in url_html]))
+                    val = st.selectbox(
+                        "Select url to display html",
+                        options=([urlx for urlx in url_html]),
+                        key=str(key),
+                    )
                     but = st.button("Show Html")
                     if but:
                         st.text(val)
                         st.text(url_html[val])
-                   
+
                 else:
                     raise st.exception(f"Unknonw value {obj} recieved")
             except zmq.error.Again:
                 if not done:
                     st.warning("No message from server")
+                else:
+                    st.text("")
+               

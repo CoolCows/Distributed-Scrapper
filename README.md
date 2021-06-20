@@ -35,9 +35,9 @@ C 1 hace www.uci.cu 3
 
 C 2 hace www.uci.cu 3 (Se debe emparejar rapidamente con el primero) pues se accede a la cache
 
-Entra un SC 4 (Le deben empezar a tocar pedidos)
+C 3 hace evea.uh.cu 4 (No debe poder recibir pedido pues www.uci.cu 3 representa casi 4000 url scrapeadas)
 
-C 3 hace evea.uh.cu 4
+Entra un SC 4 (Le deben empezar a tocar pedidos)
 
 Muere S 3 (La conexion se debe un poco lenta)
 
