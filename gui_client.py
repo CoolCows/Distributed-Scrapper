@@ -5,10 +5,7 @@ from threading import Thread
 import zmq.sugar as zmq
 from sortedcontainers import SortedSet
 
-from utils.tools import (
-    register_socks,
-    zpipe,
-)
+from utils.tools import zpipe
 
 @st.cache(allow_output_mutation=True)
 def create_chord_client(port, m):
