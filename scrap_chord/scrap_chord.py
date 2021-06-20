@@ -222,7 +222,8 @@ class ScrapChordNode(ChordNode):
                 except KeyError:
                     pass
                 # store object
-                self.storage.insert_pair(get_id(url, self.bits), (html, url_list))
+                self.insert_key((get_id(url, self.bits), (html, url_list)))
+                #self.storage.insert_pair(get_id(url, self.bits), (html, url_list))
                 # forward to comm client
                 self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                 
