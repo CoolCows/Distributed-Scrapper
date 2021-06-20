@@ -125,6 +125,8 @@ class ScrapChordNode(ChordNode):
             f"CliCom: Router binded to {self.address[0]}:{self.address[1] + 1}"
         )
         comm_sock = get_router(self.context)
+        # comm_sock.snd_timeo = 1000
+        comm_sock.linger = 0
         comm_sock.router_mandatory = 0
         comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 1}")
 
@@ -292,7 +294,7 @@ class ScrapChordNode(ChordNode):
             if len(last_connected) > 0:
                 x = last_connected.pop(-1)
             else:
-                x = random.randint(0, len(last_connected) - 1)
+                x = random.randint(0, len(pending) - 1) 
 
             addr = pending[x]
 

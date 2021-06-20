@@ -46,12 +46,15 @@ def select_target_node(url, known_nodes, bits):
 def reset_times(url, known_nodes, pending_req, value, bits):
     if len(known_nodes) == 0:
         return
-
-    idx, _ = select_target_node(url, known_nodes, bits)
-    pending_req[url] = value
-    for urlx in pending_req:
-        if idx == select_target_node(urlx, known_nodes, bits):
+    elif len(known_nodes) == 1:
+        for urlx in pending_req:
             pending_req[urlx] = value
+    else:
+        idx, _ = select_target_node(url, known_nodes, bits)
+        pending_req[url] = value
+        for urlx in pending_req:
+            if idx == select_target_node(urlx, known_nodes, bits):
+                pending_req[urlx] = value
 
 def remove_back_slashes(url:str) -> str:
     index = len(url) - 1

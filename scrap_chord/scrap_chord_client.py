@@ -80,6 +80,9 @@ class ScrapChordClient:
                     if line.split()[0] == "ns":
                         print(known_nodes)
                         break
+                    if line.split()[0] == "of":
+                        self.online = False
+                        break
                     client_request = parse_requests(line)
                     if len(client_request) != 0:
                         self.usr_send_pipe[0].send_pyobj(client_request)
@@ -94,6 +97,8 @@ class ScrapChordClient:
 
     def communicate_with_chord(self, known_nodes:SortedSet):
         comm_sock = get_router(self.context)
+        comm_sock.linger = 0
+        # comm_sock.snd_timeo = 1000
         search_trees = []
 
         connected = set()
@@ -155,7 +160,7 @@ class ScrapChordClient:
                     pending_recv[url] = time.time() + 0.5
                 idx, target_addr = self.target_node(url, known_nodes)
 
-                self.logger.debug(f"Time remainging = {time.time() - 2*TIMEOUT_COMM*MAX_IDDLE - pending_recv[url]} for {url}")
+                # self.logger.debug(f"Time remainging = {time.time() - 2*TIMEOUT_COMM*MAX_IDDLE - pending_recv[url]} for {url}")
 
                 if time.time() - 2*TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
                     self.logger.debug(f"Removing {idx} due to delayed response({connection_lost})")
@@ -167,7 +172,7 @@ class ScrapChordClient:
                         break
                     if new_target_addr == target_addr:
                         connection_lost += 1
-                        self.logger.debug(f"Increasing connection: {connection_lost}")
+                        # self.logger.debug(f"Increasing connection: {connection_lost}")
                         reset_times(url, known_nodes, pending_recv, connection_lost*5 + (time.time() + 0.5), self.bits)
 
                 message = pickle.dumps((url, self.address))
