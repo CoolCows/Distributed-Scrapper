@@ -1,3 +1,6 @@
+from collections import deque
+
+
 class SearchTree():
     def __init__(self, root, depth:int) -> None:
         self.root = root
@@ -42,11 +45,11 @@ class SearchTree():
         if self._depths[self.root] == 1:
             return []
 
-        queue = [self.root]
+        queue = deque([self.root]) 
         visited = set()
         unexplored = []
-        for node in queue:
-            queue.pop(0)
+        while len(queue) > 0:
+            node = queue.popleft()
             if node in visited:
                 continue
             visited.add(node)
@@ -54,7 +57,7 @@ class SearchTree():
                 for child in self._graph[node]:
                     queue.append(child)
             except KeyError:
-                if self._depths[node] > 1 or node not in self._updated:
+                if node not in self._updated or self._depths[node] > 1:
                     unexplored.append(node)
 
         # print(f"Unexplored: {len(unexplored)}")
@@ -73,8 +76,8 @@ class SearchTree():
             return visual
         
         urls_html = dict()
+        print([urlx for urlx in caché],len([urlx for urlx in caché]))
         for url in self._depths:
-            
             urls_html[url] = caché[url][0]
 
         return visual, urls_html
