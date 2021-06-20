@@ -87,6 +87,7 @@ class Scraper:
         self.logger.debug("Creating worker")
         index = self.worker_threads.index(None)
         t = Thread(target=self.__work_loop, args=(addr, index))
+        # t = Thread(target=self.__simul_loop, args=(addr, index))
         self.worker_threads[index] = (addr, t)
         self.num_threads += 1
         t.start()
@@ -98,9 +99,13 @@ class Scraper:
         self.logger.info(f"WorkerThread({thread_id}): connecting to {ip}: {port + 2}, {port + 3}")
         pull_sock.connect(f"tcp://{ip}:{port + 2}")
         push_sock.connect(f"tcp://{ip}:{port + 3}")
+        
+        # push_sock.hwm = 30
+        push_sock.linger = 500
+
+        pull_sock.rcvtimeo = (TIMEOUT_WORK*MAX_IDDLE) * 1000
 
         count = 0
-        pull_sock.rcvtimeo = (TIMEOUT_WORK * MAX_IDDLE) * 1000
         while True: 
             try:
                 url = pull_sock.recv_pyobj()
@@ -114,6 +119,35 @@ class Scraper:
         self.logger.info(f"WorkerThread({thread_id}): closing.")
         pull_sock.close()
         push_sock.close()
+
+    def __simul_loop(self, addr, thread_id):
+        ip, port = addr
+        pull_sock = self.ctx.socket(zmq.PULL)
+        push_sock = self.ctx.socket(zmq.PUSH)
+        self.logger.info(f"SimulThread({thread_id}): connecting to {ip}: {port + 2}, {port + 3}")
+        pull_sock.connect(f"tcp://{ip}:{port + 2}")
+        push_sock.connect(f"tcp://{ip}:{port + 3}")
+
+        # push_sock.hwm = 30
+        push_sock.linger = 500
+
+        pull_sock.rcvtimeo = (TIMEOUT_WORK*MAX_IDDLE) * 1000
+
+        count = 0
+        while True: 
+            try:
+                url = pull_sock.recv_pyobj()
+            except zmq.error.Again:
+                break
+            
+            self.logger.info(f"SimulThread({thread_id}): Forwarding Result({count}) to {ip}:{port}")
+            count += 1
+            push_sock.send_pyobj((url, "html", set([url + str(i) for  i in range(10)])))
+        
+        self.logger.info(f"SimulThread({thread_id}): closing.")
+        pull_sock.close()
+        push_sock.close()
+
 
     def __update_workers(self):
         self.worker_threads = [None if thread is None or not thread[1].is_alive() else thread for thread in self.worker_threads]

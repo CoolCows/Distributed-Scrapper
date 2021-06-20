@@ -44,6 +44,9 @@ def select_target_node(url, known_nodes, bits):
     raise Exception("A node must be always found")
 
 def reset_times(url, known_nodes, pending_req, value, bits):
+    if len(known_nodes) == 0:
+        return
+
     idx, _ = select_target_node(url, known_nodes, bits)
     pending_req[url] = value
     for urlx in pending_req:

@@ -19,19 +19,28 @@ class DataStorage:
         """
         self._dict = {}
         self.m = m
+        self.lock = Lock()
 
     def insert_pair(self, key, value):
         """
         Insert a pair key-value
         """
+        self.lock.acquire()
         self._dict[key] = value
+        self.lock.release()
 
     def insert_pairs(self, pairs):
         """
         Insert an iterable of key-value pairs
         """
         for pair in pairs:
-            self.insert_pair(pair)
+            self.insert_pair(*pair)
+        
+    def has_key(self, key) -> bool:
+        """
+        Returns true if contains key
+        """
+        return key in self._dict
 
     def get_key(self, key):
         """
@@ -43,7 +52,10 @@ class DataStorage:
         """
         Returns and remove key-value pair associated to key
         """
-        return (key, self._dict.pop(key))
+        self.lock.acquire()
+        val = self._dict.pop(key)
+        self.lock.release()
+        return (key, val)
 
     def get_interval_keys(self, lwb, inclusive_lower, upb, inclusive_upper):
         """
@@ -127,8 +139,10 @@ class DataStorage:
         """
         Returns and removes all key-value pairs
         """
+        self.lock.acquire()
         keys = self.get_all()
         self._dict = {}
+        self.lock.release()
         return keys
 
 class ChordNode:
