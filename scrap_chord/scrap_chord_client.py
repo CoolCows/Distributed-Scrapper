@@ -129,8 +129,7 @@ class ScrapChordClient:
             for url in url_list:
                 if url in self.local_cache:
                     (html, url_set) = self.local_cache[url]
-                    url_list2 = [*update_search_trees(search_trees, url, url_set)] #if urlx not in pending_recv]
-                    print(url_list2, url, len(url_set))
+                    url_list2 = [urlx for urlx in update_search_trees(search_trees, url, url_set) if urlx not in pending_recv] #
                     url_list += url_list2
                     self.usr_send_pipe[1].send_pyobj((url, html, url_set))
                     continue

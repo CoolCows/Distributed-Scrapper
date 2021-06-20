@@ -34,7 +34,7 @@ class DataStorage:
         Insert an iterable of key-value pairs
         """
         for pair in pairs:
-            self.insert_pair(*pair)
+            self.insert_pair(pair)
         
     def has_key(self, key) -> bool:
         """
@@ -144,6 +144,9 @@ class DataStorage:
         self._dict = {}
         self.lock.release()
         return keys
+    
+    def item_count(self) -> int:
+        return len(self._dict)
 
 class ChordNode:
     def __init__(self, m, port) -> None:
