@@ -1,6 +1,3 @@
-from logging import raiseExceptions
-
-
 class SearchTree():
     def __init__(self, root, depth:int) -> None:
         self.root = root

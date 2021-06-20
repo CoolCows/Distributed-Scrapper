@@ -65,7 +65,7 @@ class ScrapChordClient:
                 obj = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 if len(obj) == 3:
                     url, html, url_list = obj
-                    self.logger.info(f"({recieved})Recieved {url}: Links({len(url_list)})")
+                    self.logger.info(f"({recieved})Recieved url: Links({len(url_list)})")
                     recieved += 1
                     if self.gui_sock is not None:
                         self.gui_sock.send_pyobj(obj)
@@ -76,13 +76,17 @@ class ScrapChordClient:
 
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
+                    print("STDIN", line)
+                    if line.split()[0] == "ns":
+                        print(known_nodes)
+                        break
                     client_request = parse_requests(line)
                     if len(client_request) != 0:
                         self.usr_send_pipe[0].send_pyobj(client_request)
                     break
                 self.logger.info("Input ready:")
             
-            if self.gui_sock in socks:
+            if self.gui_sock is not None and self.gui_sock in socks:
                 gui_request = self.gui_sock.recv_pyobj(zmq.NOBLOCK)
                 client_request = parse_requests(gui_request)
                 self.logger.debug(str(client_request))
@@ -134,7 +138,8 @@ class ScrapChordClient:
                 self.logger.debug(f"pending: {len([*pending_recv])}, cl: {connection_lost} st: {search_trees})")
                 url_list = [*pending_recv]
             
-            kn_len = len(known_nodes)
+            temp_len = len(known_nodes)
+            temp_cl = connection_lost
             for url in url_list:
                 if url in self.local_cache:
                     (html, url_set) = self.local_cache[url]
@@ -149,17 +154,21 @@ class ScrapChordClient:
                 if url not in pending_recv:
                     pending_recv[url] = time.time() + 0.5
                 idx, target_addr = self.target_node(url, known_nodes)
+
+                self.logger.debug(f"Time remainging = {time.time() - 2*TIMEOUT_COMM*MAX_IDDLE - pending_recv[url]} for {url}")
+
                 if time.time() - 2*TIMEOUT_COMM*MAX_IDDLE > pending_recv[url]:
-                    self.logger.debug(f"Removing {idx} due to delayed response")
+                    self.logger.debug(f"Removing {idx} due to delayed response({connection_lost})")
                     reset_times(url, known_nodes, pending_recv, time.time() + 0.5, self.bits)
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
                     idx, new_target_addr = self.target_node(url, known_nodes)
-                    if target_addr is None:
+                    if new_target_addr is None:
                         self.online = False
                         break
                     if new_target_addr == target_addr:
                         connection_lost += 1
-                        reset_times(url, known_nodes, pending_recv, connection_lost*(time.time() + 0.5), self.bits)
+                        self.logger.debug(f"Increasing connection: {connection_lost}")
+                        reset_times(url, known_nodes, pending_recv, connection_lost*5 + (time.time() + 0.5), self.bits)
 
                 message = pickle.dumps((url, self.address))
                 
@@ -168,9 +177,8 @@ class ScrapChordClient:
                     connected.add(target_addr)
                 comm_sock.send_multipart([address_to_string(target_addr).encode(), message])
             
-            if kn_len == len(known_nodes):
+            if temp_len == len(known_nodes) and temp_cl == connection_lost:
                 connection_lost = max(1, connection_lost - 1)
-
         
         comm_sock.close()
         self.logger.info("Comunication with chord closing")
