@@ -14,7 +14,7 @@ from pychord import ChordNode
 
 
 class ScrapChordNode(ChordNode):
-    def __init__(self, port, m, visible:int=1) -> None:
+    def __init__(self, port, m, visible:int=2) -> None:
         super().__init__(m, port)
         self.online = False
         self.visible = visible
@@ -50,7 +50,7 @@ class ScrapChordNode(ChordNode):
             )
             if len(net_nodes) > 0:
                 for node_addr in net_nodes:
-                    self.add_node((get_id(address_to_string(node_addr), self.bits)))
+                    self.add_node(((get_id(address_to_string(node_addr), self.bits), node_addr)))
                     succ_node = self.pop_node(0)
                     self.join(succ_node[0], succ_node[1])
                     self.logger.debug(f"Joined to {succ_node}")
@@ -84,6 +84,10 @@ class ScrapChordNode(ChordNode):
                 print(self.successor_list)
             if inp[0] == "lu":
                 print(self.find_successor(int(inp[1])))
+            if inp[0] == "ds":
+                print(self.storage.item_count())
+            if inp[0] == "dsp":
+                print(self.pred_replica.item_count())
             if inp[0] == "of":
                 self.online = False
                 self.logger.info("Exiting")
@@ -111,6 +115,7 @@ class ScrapChordNode(ChordNode):
                 url_request, client_addr = pickle.loads(message)
                 url_node_addr = self.url_succesor(url_request)
                 
+                #print(self.address, url_node_addr, self.address == url_node_addr)
                 if self.address == url_node_addr:
                     self.register_request(url_request, client_addr, request_table)
                     router_table[client_addr] = idx
@@ -122,16 +127,13 @@ class ScrapChordNode(ChordNode):
             
             if self.chord_scrap_pipe[0] in socks:
                 url, html, url_list = self.chord_scrap_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                self.logger.debug(f"CliCom: ({forwards_count})Forwarding url result to client")
+                # self.logger.debug(f"CliCom: ({forwards_count})Forwarding url result to client")
                 forwards_count += 1
                 for addr in request_table[url]:
                     idx = router_table[addr]
                     message = pickle.dumps((url, html, url_list))
                     comm_sock.send_multipart([idx, REP_CLIENT_INFO, message])
                 request_table[url] = set()
-            else:
-                # self.logger.debug("CliCom: Poll timeout")
-                pass
 
         self.logger.debug("CliCom: Closing")
     
@@ -161,9 +163,9 @@ class ScrapChordNode(ChordNode):
                 url = self.chord_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
                 if url in pending_messages:
                     continue
-                self.logger.debug(f"CliCom: Forwarding url to scraper")
+                # self.logger.debug(f"CliCom: Forwarding url to scraper")
                 if self.storage.has_key(get_id(url, self.bits)): #url in self.cache:
-                    html, url_list =  self.storage.get_key(get_id(url, self.bits))
+                    _, (html, url_list) =  self.storage.get_key(get_id(url, self.bits))
                     self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                     continue
                 pending_messages.add(url)
@@ -176,7 +178,7 @@ class ScrapChordNode(ChordNode):
                 scrap_conns = 1
                 self.push_scrap_pipe[1].send_pyobj(url)
 
-            elif self.push_scrap_pipe[1] in socks:
+            if self.push_scrap_pipe[1] in socks:
                 # rcv object
                 url, html, url_list = self.push_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
                 if self.storage.has_key(get_id(url, self.bits)):
@@ -184,15 +186,15 @@ class ScrapChordNode(ChordNode):
                 # remove from pending
                 try:
                     pending_messages.remove(url)
-                except ValueError:
+                except KeyError:
                     pass
                 # store object
                 # self.cache[url] = (html, url_list) # TODO: Where to save it so data can be replicated (to successor)
-                self.storage.insert_pair(url, (html, url_list))
+                self.storage.insert_pair(get_id(url, self.bits), (html, url_list))
                 # forward to comm client
                 self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                 
-            elif not connected_to_any_scraper and time.time() > rejection_time and len(pending_messages) > 0:
+            if not connected_to_any_scraper and time.time() > rejection_time and len(pending_messages) > 0:
                 if self.connect_to_scraper(last_connected):
                     scrap_conns = 1
                     self.logger.debug(f"ScrapCom: Resending old mesages")
@@ -207,10 +209,6 @@ class ScrapChordNode(ChordNode):
                     scrap_conns += 1
                 else:
                     rejection_time = time.time() + TIMEOUT_COMM*MAX_IDDLE*2
-            else:
-                pass
-                # self.logger.debug("ScrapCom is iddle")
-                #time.sleep(0.5)
         
         self.logger.debug("ScrapComm: Closing ...")
     
@@ -223,6 +221,7 @@ class ScrapChordNode(ChordNode):
         pull_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 3}")
         
         # push_sock.hwm = 50
+        push_sock.linger = 0
 
         poller = zmq.Poller()
         register_socks(poller, pull_sock, self.push_scrap_pipe[0])
