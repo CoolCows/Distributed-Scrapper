@@ -22,3 +22,4 @@
     - Que no se escrapeen cosas repetidas, no recibir 2 veces una misma url
     - Un nodo se queda sonso despues de que un cliente se le desconecta, y cuando se reconecta. Con misma direccion.
 * Una interfaz visual medio boba puede ayudar
+* Poner lingering = 0
