@@ -1,5 +1,6 @@
 import logging
 import time
+from utils.search_tree import SearchTree
 from requests.api import request
 from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM
 from scrap_chord.util import add_search_tree, in_between, parse_requests, remove_back_slashes, reset_times, select_target_node, update_search_trees
@@ -61,11 +62,20 @@ class ScrapChordClient:
         while self.online:
             socks = dict(poller.poll(1000))
             if self.usr_send_pipe[0] in socks:
-                url, html, url_list = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                self.logger.info(f"({recieved})Recieved {url}: Links({len(url_list)})")
-                recieved += 1
-                if self.gui_sock is not None:
-                    self.gui_sock.send_pyobj((url, html, url_list))
+                obj = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
+                if isinstance(obj, tuple):
+                    url, html, url_list = obj
+                    self.logger.info(f"({recieved})Recieved {url}: Links({len(url_list)})")
+                    recieved += 1
+                    if self.gui_sock is not None:
+                        self.gui_sock.send_pyobj(obj)
+                elif isinstance(obj, SearchTree):
+                    print(obj.__repr__())
+                    search_tree = obj
+                    basic, url_html = search_tree.visual(self.local_cache, basic=False)
+                    self.logger.info(basic)
+                    if self.gui_sock is not None:
+                        self.gui_sock.send_pyobj((basic, url_html))
 
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
@@ -119,7 +129,9 @@ class ScrapChordClient:
                         pass
                     self.usr_send_pipe[1].send_pyobj((url, html, url_set)) # Send recieved url and html to main thread for display
                     self.local_cache[url] = (html, url_set)
-                    url_set = update_search_trees(search_trees, url, url_set)
+                    
+                    url_set, completed = update_search_trees(search_trees, url, url_set)
+                    self.send_all_search_trees(completed)
                     url_list = [*url_set]
             else:
                 self.logger.debug(f"pending: {len([*pending_recv])}, cl: {connection_lost} st: {search_trees})")
@@ -129,9 +141,11 @@ class ScrapChordClient:
             for url in url_list:
                 if url in self.local_cache:
                     (html, url_set) = self.local_cache[url]
-                    url_list2 = [urlx for urlx in update_search_trees(search_trees, url, url_set) if urlx not in pending_recv] #
-                    url_list += url_list2
+                    more_urls, completed = update_search_trees(search_trees, url, url_set) #
+                    more_urls = [urlx for urlx in more_urls if urlx not in pending_recv] 
+                    url_list += more_urls
                     self.usr_send_pipe[1].send_pyobj((url, html, url_set))
+                    self.send_all_search_trees(completed)
                     continue
                 
                 url = remove_back_slashes(url)
@@ -190,4 +204,8 @@ class ScrapChordClient:
         )
         self.logger.debug(f"Getting chord nodes: {chord_nodes}")
         return chord_nodes
+    
+    def send_all_search_trees(self, completed):
+        for st in completed:
+            self.usr_send_pipe[1].send_pyobj(st)
         
