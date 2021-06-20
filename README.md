@@ -3,6 +3,10 @@
 
 ### Intro
 
+Nuestro sistema esta compuesto por 3 tipos de nodos distintos, Scraper, Cliente y Chord. El cliente es el que se encarga de realizar los pedidos el nodo chord, funciona como cache y enrutador, si contiene el url lo envia, sino pide el servicio de algun scraper para que analize el request. Las ventajas de este sistema constituyen a mayor cantidad de nodos chord y scrapers en la red representan mayor poder de computo y mayor velocidad a la hora de realizar pedidos. Ademas como un sistema distribuido descentralizado ningun nodo es vital para el funcionamiento de la red, mientras exista un nodo chord y un scraper es posbile seguir haciendo request (Quizas con un poco de lag) El desafio en esto esta en manetener los nodos que que integran la red en "armonia", que el sistema no llegue a un punto muerto donde una funcion de un nodo deje de funcionar, como el encargado de recibir request, que a ojos de todos sigue funcionando, pero evidentemente no, luego los keys que le pertenezcan no podren obtenerse a no ser que se cierre el nodo manualmente y la red detecte un fallo en el sistema.
+
+Mientras mas nodos en la red mas poder de computo. Hace falta hallar un balance entre nodos chord y scrapers. Un nodo chord en nuestros ensayos con una cola llena de pedidos no puede manter mas 5 hilos del scraper a la vez. Se les van cerrando. Luego muy pocos nodos chord y muchos scrapers no es bueno, xq no se utilizan todos. Lo contrario tampoco fitdoing xq muchos nodos chord y muy poco scrapers en causo de aumento pedidos en la red causa lentitud. Una buena proporcion seria de un scraper con 5 trabajadores disponibles por cada 2 o 3 nodos chord en la red. Una distribucion ideal seria un scraper por nodo chord.
+
 ### Chord
 
 ### Scraper Chord
