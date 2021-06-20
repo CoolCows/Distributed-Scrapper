@@ -7,7 +7,7 @@ from scrap_chord.util import add_search_tree, in_between, parse_requests, remove
 import sys
 import pickle
 from threading import  Thread
-from typing import Tuple
+from typing import List, Tuple
 from utils.const import CHORD_BEACON_PORT, CODE_WORD_CHORD, REP_CLIENT_INFO, REP_CLIENT_NODE
 
 import zmq.sugar as zmq
@@ -63,19 +63,16 @@ class ScrapChordClient:
             socks = dict(poller.poll(1000))
             if self.usr_send_pipe[0] in socks:
                 obj = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
-                if isinstance(obj, tuple):
+                if len(obj) == 3:
                     url, html, url_list = obj
                     self.logger.info(f"({recieved})Recieved {url}: Links({len(url_list)})")
                     recieved += 1
                     if self.gui_sock is not None:
                         self.gui_sock.send_pyobj(obj)
-                elif isinstance(obj, SearchTree):
-                    print(obj.__repr__())
-                    search_tree = obj
-                    basic, url_html = search_tree.visual(self.local_cache, basic=False)
-                    self.logger.info(basic)
+                elif len(obj) == 2:
+                    self.logger.info(obj[0])
                     if self.gui_sock is not None:
-                        self.gui_sock.send_pyobj((basic, url_html))
+                        self.gui_sock.send_pyobj(obj)
 
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
@@ -205,7 +202,7 @@ class ScrapChordClient:
         self.logger.debug(f"Getting chord nodes: {chord_nodes}")
         return chord_nodes
     
-    def send_all_search_trees(self, completed):
+    def send_all_search_trees(self, completed:List[SearchTree]):
         for st in completed:
-            self.usr_send_pipe[1].send_pyobj(st)
+            self.usr_send_pipe[1].send_pyobj(st.visual(self.local_cache, basic=False))
         
