@@ -81,6 +81,9 @@ def update_search_trees(search_trees:List[SearchTree], url:str, url_set:set) -> 
     return pending, completed
 
 def save_files(url_html:dict, max_saves:int, index:int):
+    if not os.path.exists("./scrap_saves"):
+        os.makedirs("./scrap_saves")
+
     not_used = -1
     for i in range(max_saves):
         if not os.path.exists(f"./scrap_saves/scrap_saves({i})"):
