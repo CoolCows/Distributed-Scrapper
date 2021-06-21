@@ -14,8 +14,8 @@ def extract_html(url):
             return extract_html("http://" + url)
         if isinstance(exception, (ConnectTimeout, ReadTimeout)):
             return CONNECTION_TIMEOUT, set()
-        if isinstance(exception, ConnectionError):
-            return CONNECTION_ERROR, set()
+        # if isinstance(exception, ConnectionError):
+        #     return CONNECTION_ERROR, set()
         return "Bad Request", set()
 
     domain = get_header(url)
