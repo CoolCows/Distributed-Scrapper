@@ -1,54 +1,61 @@
 # Distributed-Scrapper
-**Autores**: Rodrigo Pino, Adrian Portales, C-412
+**Autores**: Rodrigo Pino, Adrian Rodriguez Portales, C-412
 
-### Intro
+## ScrapKord
 
-Nuestro sistema esta compuesto por 3 tipos de nodos distintos, Scraper, Cliente y Chord. El cliente es el que se encarga de realizar los pedidos el nodo chord, funciona como cache y enrutador, si contiene el url lo envia, sino pide el servicio de algun scraper para que analize el request. Las ventajas de este sistema constituyen a mayor cantidad de nodos chord y scrapers en la red representan mayor poder de computo y mayor velocidad a la hora de realizar pedidos. Ademas como un sistema distribuido descentralizado ningun nodo es vital para el funcionamiento de la red, mientras exista un nodo chord y un scraper es posbile seguir haciendo request (Quizas con un poco de lag) El desafio en esto esta en manetener los nodos que que integran la red en "armonia", que el sistema no llegue a un punto muerto donde una funcion de un nodo deje de funcionar, como el encargado de recibir request, que a ojos de todos sigue funcionando, pero evidentemente no, luego los keys que le pertenezcan no podren obtenerse a no ser que se cierre el nodo manualmente y la red detecte un fallo en el sistema.
+**ScrapKord** es un sistema de *web-scraping* distribuido basado en *Chord*. Está compuesto por 3 tipos de nodos: un nodo *chord* , un nodo *scraper* y un nodo cliente. El sistema es descentralizado y siempre que exista algún nodo de cada tipo es posible responder pedidos. Dado que una menor cantidad de nodos implica menor rendimiento, **ScrapKord**  permite la entrada de nuevos nodos en pleno funcionamiento. Además, el sistema es tolerante a fallas y después de la caída o entrada de nodos siempre se logra estabilizar.
 
-Mientras mas nodos en la red mas poder de computo. Hace falta hallar un balance entre nodos chord y scrapers. Un nodo chord en nuestros ensayos con una cola llena de pedidos no puede manter mas 5 hilos del scraper a la vez. Se les van cerrando. Luego muy pocos nodos chord y muchos scrapers no es bueno, xq no se utilizan todos. Lo contrario tampoco fitdoing xq muchos nodos chord y muy poco scrapers en causo de aumento pedidos en la red causa lentitud. Una buena proporcion seria de un scraper con 5 trabajadores disponibles por cada 2 o 3 nodos chord en la red. Una distribucion ideal seria un scraper por nodo chord.
+### pychord
 
-### Chord
+En este módulo se encuentra una implementación del DHT Chord. Además de las funcionalidades propias de los nodos Chord, cuenta con un sistema de replicación para poder conservar las llaves de un nodo en caso de fallos. Posee operaciones básicas de un sistema de este tipo como *find_successor* y el manejo de las llaves, desde búsqueda e inserción hasta eliminación. La implementación brinda todas estas funciones en forma de RPCs.   
 
-### Scraper Chord
+### scraper_chord
 
-Un nodo de este tipo es una especializacion de la clase Chord implementada explicitamente para utilizar los servicio de un scraper. El funcionamiento de este nodo esta compuesto por tres hilos principales, cada uno desempennando una funcion unica y de igual importancia:
+En este módulo se encuentran las implementaciones de dos de los tipos de nodos del sistema de **ScrapKord**:
 
-* Comunicacion con cliente: Un hilo encargado de las comunicaciones con los clientes. Este toma todos los pedidos que le hagan los clientes. Si este pedidos se encarga dicho nodo chord lo busca en su cache, en caso de no encontrarlos pide el servicio de un scraper en la red.
+* nodo *chord*: Un nodo de este tipo es una especialización de la clase `ChordNode` de `pychord`, implementada explicítamente para utilizar los servicio de un scraper. Este nodo posee dos conjuntos de funciones principales:
 
-* Comunicacion con scraper: Este hilo es el encargado de pedir cuando necesita responder a pedidos de comunicarse con el scraper. En caso de que tenga muchos pedidos pendientes buscara el apoyo de otros scrapers en la red.
+    * Comunicación con los clientes: Se encarga de las comunicaciones con los clientes. Este toma todos los pedidos que le hagan los clientes y busca los mismos en la caché antes de pasarlos al scraper.
 
-* Recibidor de trabajos de scraper: Una vez el hilo encargado de comunicacion con el scraper obtenga conexion de un scraper. Estos empezaran a enviar trabajo a este hilo. Este hilo tiene sockets tipo push donde envia sus trabajos y sockets tipo pull donde los devuelve.
+    * Comunicación con los scrapers: Se encarga de buscar scrapers y enviarles los pedidos de los clientes en caso de que no estén en la caché. Recibe los resultados de los scrapers para guardarlos en la caché y luego enviarlos al usuario.
 
-### Scraper
+* nodo cliente: Un nodo de este tipo es el encargado de recibir como entrada los pedidos del usuario para enviarlos al nodo *chord* que debe procesarlos, y luego esperar la respuesta. En el caso de pedidos de profundidad mayor que uno, se encarga que gestionar el árbol de búsqueda.
+### scraper
 
-Este nodo ofrece el servicio de scrapear en la red. Un nodo le pide sus servicios y este responde si o no de acuerda a la cantidad de trabajadores que tenga el momento. En el caso de responder si, este crea un nuevo hilo trabajador que se conecta a cierto puerto especificado por el requester. Una vez conectados obtiene los trabajos a traves de hacer pull, y una vez finalizado empieza a hacer push.
+En este módulo se encuentra el último tipo de nodo y quien hace el trabajo realmente de procesar el pedido del usuario: ofrece el servicio de scrapear en la red. Un nodo le pide sus servicios y este responde si está disponible de acuerdo a la cantidad de trabajadores (*free working threads*) que tenga en ese momento. En el caso de responder afirmativamente, este crea un nuevo *worker* que se conecta a cierto puerto especificado por el *requester*. Una vez conectados, obtiene los trabajos a través del uso de pull, y cuando son finalizados empieza a hacerles push.
 
-### Chord Client
+### Ejecución:
+#### Nodo ScrapChord:
 
-Este es un nodo especifico para comunicarse con nodos Chord Scraper: Los pedidos se envian a traves de este. Este nodo cuando se hace una busqueda en profundidad el solo se gestiona. Sabe que pedir para completar su trabajo.
+```bash
+python run.py sc <port> <bits>
+```
+nota: `sc` puede ser sustituido por `chord` o `scrapchord`
 
-### Ejemplo
+* `<port>` puerto principal del nodo *chord*
+* `<bits>` cantidad de *bits* con el que va a trabajar el nodo *chord* 
 
-Levantar 3 nodos chord, 3 nodos clientes, 3 nodos scraper:
+#### Nodo Scraper
 
-C 1 hace www.uci.cu 3
+```bash
+python run.py s <port> <max_worker>
+```
+* `<port>` puerto principal del nodo *scraper*
+* `<max_worker>` cantidad maxima de *worker* del nodo
 
-C 2 hace www.uci.cu 3 (Se debe emparejar rapidamente con el primero) pues se accede a la cache
+#### Nodo Cliente
 
-C 3 hace evea.uh.cu 4 (No debe poder recibir pedido pues www.uci.cu 3 representa casi 4000 url scrapeadas)
+```bash
+python run.py c <port> <bits>
+```
+* `<port>` puerto principal del nodo cliente
+* `<bits>` cantidad de *bits* con el que trabajan los nodos *chord* a los cuales se va a conectar
 
-Entra un SC 4 (Le deben empezar a tocar pedidos)
+#### Interfaz gráfica de Streamlit
 
-Muere S 3 (La conexion se debe un poco lenta)
+Si se cuenta con `streamlit` se puede ejecutar un cliente con una interfaz gráfica simple e intuitiva
 
-Vuelve S 3 (Tras un tiempo)
+```bash
+streamlit run st_client.py 
+```
 
-Entra un S 4
-
-Entra SC 5 (Le deben tocar pedidos)
-
-Muere C 2 (Los nodos chord deben parar de enviarle)
-
-Cerra nodos Chord uno por uno en intervalo de por medio de 10 segundos (La replicacion debe funcionar en bastante bien)
-
-Entra un C 4  y pide www.uci.cu 3 (Deber avanzar muy rapido, la mayoria de las url deben estar cacheadas)
