@@ -231,6 +231,8 @@ class ScrapChordNode(ChordNode):
                 if self.connect_to_scraper(last_connected):
                     scrap_conns = 1
                     self.logger.debug(f"ScrapCom: Resending old mesages")
+                    for pend_mss in [pend for pend in pending_messages if self.storage.has_key(pend)]:
+                        pending_messages.remove(pend_mss)
                     for url in pending_messages:
                         self.push_scrap_pipe[1].send_pyobj(url)
                 else:
@@ -287,7 +289,7 @@ class ScrapChordNode(ChordNode):
         connected = set()
 
         if len(self.scraper_list) == 0:
-            self.scraper_list = self.get_online_scrappers()
+            self.scraper_list = self.get_online_scrappers(more=True)
         
         info = pickle.dumps(self.address)
 
@@ -359,11 +361,11 @@ class ScrapChordNode(ChordNode):
         comm_sock.close()
         return False
 
-    def get_online_scrappers(self):
+    def get_online_scrappers(self, more = False):
         scrap_addrs = self.find_scrappers_chord()
 
-        if len(scrap_addrs) == 0:
-            scrap_addrs = find_nodes(
+        if len(scrap_addrs) == 0 or more:
+            scrap_addrs += find_nodes(
                 port=SCRAP_BEACON_PORT, code_word=CODE_WORD_SCRAP, tolerance=3, all=True
             )
         return scrap_addrs

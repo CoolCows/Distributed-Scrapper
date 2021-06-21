@@ -57,6 +57,7 @@ class Scraper:
 
     def __communication_loop(self):
         comm_sock = get_router(self.ctx)
+        comm_sock.router_mandatory = 0
         comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1]}")
 
         while self.online:
