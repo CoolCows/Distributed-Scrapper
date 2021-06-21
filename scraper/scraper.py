@@ -114,8 +114,15 @@ class Scraper:
             except zmq.error.Again:
                 break
             html, urls = extract_html(url, self.logger)
-            self.logger.info(f"WorkerThread({thread_id}): Forwarding Result({count}) to {ip}:{port}")
-            count += 1
+            
+            if html == CONNECTION_TIMEOUT:
+                self.logger.info(f"Connection timeout.")
+            elif html == CONNECTION_ERROR:
+                self.logger.warning(f"No access to internet.")
+            else:
+                self.logger.info(f"WorkerThread({thread_id}): Forwarding Result({count}) to {ip}:{port}")
+                count += 1
+            
             push_sock.send_pyobj((url, html, urls))
         
         self.logger.info(f"WorkerThread({thread_id}): closing.")

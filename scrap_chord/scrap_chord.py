@@ -2,7 +2,7 @@ import logging
 from operator import add
 import pickle
 import random
-from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM, TIMEOUT_WORK
+from scraper.scraper_const import CONNECTION_ERROR, CONNECTION_TIMEOUT, MAX_IDDLE, TIMEOUT_COMM, TIMEOUT_WORK
 from threading import Lock, Thread
 import time
 from typing import Tuple
@@ -265,7 +265,6 @@ class ScrapChordNode(ChordNode):
         push_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 2}")
         pull_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 3}")
 
-        # push_sock.hwm = 50
         push_sock.linger = 0
 
         poller = zmq.Poller()
@@ -277,8 +276,12 @@ class ScrapChordNode(ChordNode):
                 push_sock.send_pyobj(request_url)
             if pull_sock in socks:
                 obj = pull_sock.recv_pyobj(zmq.NOBLOCK)
-                self.push_scrap_pipe[0].send_pyobj(obj)
                 self.update_last_pull(time.time() + TIMEOUT_WORK * MAX_IDDLE)
+                
+                _, html, _ = obj
+                if html != CONNECTION_ERROR and html != CONNECTION_TIMEOUT:
+                    self.push_scrap_pipe[0].send_pyobj(obj)
+                
 
         self.logger.debug("PushPull: Closing ...")
 
