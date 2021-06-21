@@ -1,3 +1,5 @@
 TIMEOUT_COMM = 1
 TIMEOUT_WORK = 3
 MAX_IDDLE = 5
+CONNECTION_TIMEOUT = "Connection Timeout"
+CONNECTION_ERROR = "Conection Error"
