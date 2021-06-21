@@ -123,7 +123,7 @@ class ScrapChordClient:
                     connection_lost += 1
                     self.add_node(known_nodes, next_node)
                     url_list = [url_request]
-                    reset_times(url_request, known_nodes, pending_recv, connection_lost*(time.time() + 0.6),  self.bits) 
+                    reset_times(url_request, known_nodes, pending_recv, connection_lost*5 + (time.time() + 0.6),  self.bits) 
                 
                 if flag == REP_CLIENT_INFO:
                     url, html, url_set = pickle.loads(message)
