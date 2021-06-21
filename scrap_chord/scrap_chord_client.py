@@ -131,7 +131,7 @@ class ScrapChordClient:
                     try:
                         del pending_recv[url]
                     except KeyError:
-                        pass
+                        continue
                     self.usr_send_pipe[1].send_pyobj((url, html, url_set)) # Send recieved url and html to main thread for display
                     self.local_cache[url] = (html, url_set)
                     
@@ -190,7 +190,7 @@ class ScrapChordClient:
     def target_node(self, url, known_nodes) -> Tuple[int, tuple]:
         if len(known_nodes) == 0:
             self.logger.info("Re-connecting to net")
-            self.add_node(known_nodes, *self.get_chord_nodes())
+            self.add_node(known_nodes, *self.get_chord_nodes(all=False))
             if len(known_nodes) == 0:
                 self.logger.info("No online chord nodes found")
                 return None, None
@@ -203,12 +203,12 @@ class ScrapChordClient:
             idx = get_id(addr_hash, self.bits)
             known_nodes.add((idx, addr))
 
-    def get_chord_nodes(self):
+    def get_chord_nodes(self, all = True):
         chord_nodes, _ = find_nodes(
             port=CHORD_BEACON_PORT,
             code_word=CODE_WORD_CHORD,
             tolerance=3,
-            all = True
+            all = all
         )
         self.logger.debug(f"Getting chord nodes: {chord_nodes}")
         return chord_nodes
