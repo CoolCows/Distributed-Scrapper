@@ -3,7 +3,7 @@ import time
 from utils.search_tree import SearchTree
 from requests.api import request
 from scraper.scraper_const import MAX_IDDLE, TIMEOUT_COMM
-from scrap_chord.util import add_search_tree, in_between, parse_requests, remove_back_slashes, reset_times, select_target_node, update_search_trees
+from scrap_chord.util import add_search_tree, in_between, parse_requests, remove_back_slashes, reset_times, save_files, select_target_node, update_search_trees
 import sys
 import pickle
 from threading import  Thread
@@ -59,13 +59,15 @@ class ScrapChordClient:
         
         self.logger.info("Input ready:")
         recieved = 0
+        saves = 0
+        max_saves = 5
         while self.online:
             socks = dict(poller.poll(1000))
             if self.usr_send_pipe[0] in socks:
                 obj = self.usr_send_pipe[0].recv_pyobj(zmq.NOBLOCK)
                 if len(obj) == 3:
                     url, html, url_list = obj
-                    self.logger.info(f"({recieved})Recieved url: Links({len(url_list)})")
+                    self.logger.debug(f"({recieved})Recieved {url}: Links({len(url_list)})")
                     recieved += 1
                     if self.gui_sock is not None:
                         self.gui_sock.send_pyobj(obj)
@@ -73,6 +75,11 @@ class ScrapChordClient:
                     self.logger.info(obj[0])
                     if self.gui_sock is not None:
                         self.gui_sock.send_pyobj(obj)
+                    else:
+                        self.logger.info("Saving files ...")
+                        loc = save_files(obj[1], max_saves, saves)
+                        saves = (saves + 1) % max_saves
+                        self.logger.info(f"Save completed at {loc}")
 
             if sys.stdin.fileno() in socks:
                 for line in sys.stdin:
@@ -166,9 +173,11 @@ class ScrapChordClient:
                     reset_times(url, known_nodes, pending_recv, time.time() + 0.5, self.bits)
                     known_nodes.remove((idx, (target_addr[0], target_addr[1] - 1))) 
                     idx, new_target_addr = self.target_node(url, known_nodes)
+                    
                     if new_target_addr is None:
                         self.online = False
                         break
+                    
                     if new_target_addr == target_addr:
                         connection_lost += 1
                         # self.logger.debug(f"Increasing connection: {connection_lost}")

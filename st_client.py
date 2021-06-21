@@ -1,3 +1,4 @@
+from scrap_chord.util import save_files
 from altair.vegalite.v4.api import value
 import streamlit as st
 from zmq.sugar.poll import Poller
@@ -35,6 +36,10 @@ if __name__ == "__main__":
 
     urls_req = st.text_input("Enter urls for scraping")
     start = st.button("Start")
+
+
+    saves = 0
+    max_saves = 5
     if start:
         t, chord_sock = create_chord_client(int(port), int(bits))
         done = False
@@ -64,6 +69,11 @@ if __name__ == "__main__":
                     visual, url_html = obj
                     st.markdown("Search Tree Completed")
                     st.text(visual)
+                    st.text("Saving files ...")
+                    loc = save_files(obj[1], max_saves, saves)
+                    saves = (saves + 1) % max_saves
+                    st.text(f"Save completed in {loc}")
+                    st.button("Clean")
                     break
 
             except zmq.error.Again:
