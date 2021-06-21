@@ -35,7 +35,10 @@ def net_beacon(node_port:int, beacon_port:int, code_word:str, visible:int = 1, f
     while forever or visible > 0:
         info, addr = beacon_socket.recvfrom(1024)
         if info == b"ping" + code_word:
-            visible = visible - 1 if not forever else visible = 100
+            if not forever:
+                visible = visible - 1
+            else:
+                visible = 100
             print(f"Pong({visible})")
             visible_byte = str(visible).encode()
             beacon_socket.sendto(b"pong" + code_word + b"@" + port_byte + b"@" + visible_byte, addr)

@@ -114,9 +114,9 @@ class Scraper:
             html, urls = extract_html(url)
             
             if html == CONNECTION_TIMEOUT:
-                self.logger.info(f"Connection timeout.")
+                self.logger.info(f"WorkerThread({thread_id}): Connection timeout.")
             elif html == CONNECTION_ERROR:
-                self.logger.warning(f"No access to internet.")
+                self.logger.warning(f"WorkerThread({thread_id}): No access to internet.")
             else:
                 self.logger.info(f"WorkerThread({thread_id}): Forwarding Result({count}) to {ip}:{port}")
                 count += 1
