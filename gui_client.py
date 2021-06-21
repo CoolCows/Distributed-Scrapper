@@ -35,6 +35,7 @@ if __name__ == "__main__":
 
     urls_req = st.text_input("Enter urls for scraping")
     start = st.button("Start")
+    done = False
     if start:
         t, chord_sock = create_chord_client(int(port), int(bits))
         done = False
@@ -60,25 +61,14 @@ if __name__ == "__main__":
                         st.text("Links in page:")
                         st.text("\n".join(urlx for urlx in url_list))
                 elif len(obj) == 2 and show_search_tree:
+                    done = True
                     visual, url_html = obj
                     st.markdown("Search Tree Completed")
                     st.text(visual)
-                    done = True
-                    val = st.selectbox(
-                        "Select url to display html",
-                        options=([urlx for urlx in url_html]),
-                        key=str(key),
-                    )
-                    but = st.button("Show Html")
-                    if but:
-                        st.text(val)
-                        st.text(url_html[val])
+                    break
 
-                else:
-                    raise st.exception(f"Unknonw value {obj} recieved")
             except zmq.error.Again:
                 if not done:
                     st.warning("No message from server")
                 else:
                     st.text("")
-               
