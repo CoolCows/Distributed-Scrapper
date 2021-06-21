@@ -174,11 +174,12 @@ class ScrapChordNode(ChordNode):
     
     def communicate_with_scraper(self, messages_per_thread):
         self.logger.debug("CommScrap: Running")
-        pending_messages = SortedSet()
+        pending_messages = dict() #SortedSet()
         last_connected = []
 
         scrap_conns = 0
         rejection_time = 0
+        unanswered = SortedSet()
 
         poll = zmq.Poller()
         register_socks(poll, self.chord_scrap_pipe[1], self.push_scrap_pipe[1])
@@ -190,13 +191,17 @@ class ScrapChordNode(ChordNode):
                 # recv url
                 url = self.chord_scrap_pipe[1].recv_pyobj(zmq.NOBLOCK)
                 if url in pending_messages:
-                    continue
+                    pending_messages[url] += 1
+                    if pending_messages[url] > 3:
+                        pending_messages[url] = 0
+                        unanswered.add(url)
+
                 self.logger.debug(f"CliCom: Forwarding url to scraper")
                 if self.storage.has_key(get_id(url, self.bits)): #url in self.cache:
                     _, (html, url_list) =  self.storage.get_key(get_id(url, self.bits))
                     self.chord_scrap_pipe[1].send_pyobj((url, html, url_list))
                     continue
-                pending_messages.add(url)
+                pending_messages[url] = 0
                 # connec to scraper
                 if not connected_to_any_scraper:
                     self.logger.debug(f"ScrapCom: Looking for connection with scraper")
@@ -213,10 +218,12 @@ class ScrapChordNode(ChordNode):
                 if self.storage.has_key(get_id(url, self.bits)):
                     continue
                 # remove from pending
-                try:
-                    pending_messages.remove(url)
-                except KeyError:
-                    pass
+                
+                if url in unanswered:
+                    unanswered.remove(url)
+                if url in pending_messages:
+                    pending_messages.pop(url)
+                
                 # store object
                 self.insert_key((get_id(url, self.bits), (html, url_list)))
                 #self.storage.insert_pair(get_id(url, self.bits), (html, url_list))
@@ -228,7 +235,7 @@ class ScrapChordNode(ChordNode):
                     scrap_conns = 1
                     self.logger.debug(f"ScrapCom: Resending old mesages")
                     for pend_mss in [pend for pend in pending_messages if self.storage.has_key(pend) or self.url_succesor(pend) != self.address]:
-                        pending_messages.remove(pend_mss)
+                        pending_messages.pop(pend_mss)
                     for url in pending_messages:
                         self.push_scrap_pipe[1].send_pyobj(url)
                 else:
@@ -248,6 +255,10 @@ class ScrapChordNode(ChordNode):
                     rejection_time = time.time() + TIMEOUT_COMM*MAX_IDDLE
                 else:
                     rejection_time = time.time() + TIMEOUT_COMM*MAX_IDDLE*2
+            elif len(unanswered) > 0:
+                if self.connect_to_other_scraper():
+                    for urlx in unanswered:
+                        self.push_scrap_pipe[1].send_pyobj(urlx)
 
         self.logger.debug("ScrapComm: Closing ...")
 
