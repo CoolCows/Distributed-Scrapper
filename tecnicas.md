@@ -13,13 +13,5 @@
 * Que los nodos tengan un tiempo de visibilidad (que esten disponible para cierta cantidad de conexiones?)
 * Depurar comunicaciones intensamente:
     - Apagar un nodo cuando deje de funcionar
-    - Probar que 2 nodos chord se hagan join correctamente, que pasa si se le hace join a un nodo que no existe
-    - realizar el join en medio de un pedido 
-    - utilizar las estructuras para aplicar la replicacion
-    - Probar que la replicacion funcione una vez implementada
-    - Que hacer cuando da host unreacheable en el cliente
+* Que hacer cuando da host unreacheable en el cliente
 * Agregar el scrapeo en profundidad, chequear que el scraping funcione en talla
-    - Que no se escrapeen cosas repetidas, no recibir 2 veces una misma url
-    - Un nodo se queda sonso despues de que un cliente se le desconecta, y cuando se reconecta. Con misma direccion.
-* Una interfaz visual medio boba puede ayudar
-* Poner lingering = 0
