@@ -27,22 +27,28 @@ def zpipe(ctx):
     b.connect(iface)
     return a, b
 
-def net_beacon(node_port:int, beacon_port:int, code_word:str) -> NoReturn:
+def net_beacon(node_port:int, beacon_port:int, code_word:str, visible:int = 1, forever:bool = False) -> NoReturn:
     port_byte = str(node_port).encode()
     beacon_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     beacon_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     beacon_socket.bind(("", beacon_port))
-    while True:
+    while forever or visible > 0:
         info, addr = beacon_socket.recvfrom(1024)
         if info == b"ping" + code_word:
-            print("Pong")
-            beacon_socket.sendto(b"pong" + code_word + b"@" + port_byte, addr)
+            visible = visible - 1 if not forever else visible = 100
+            print(f"Pong({visible})")
+            visible_byte = str(visible).encode()
+            beacon_socket.sendto(b"pong" + code_word + b"@" + port_byte + b"@" + visible_byte, addr)
+    
+    beacon_socket.close()
 
 def find_nodes(port:int, code_word:bytes, tolerance:int = 3, all:bool = False) -> List[Tuple[str, int]]:
     broadcast_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     broadcast_socket.settimeout(0.5)
+    
     nodes = []
+    max_visible = 0
     while tolerance > 0:
         broadcast_socket.sendto(
             b"ping" + code_word,
@@ -53,14 +59,19 @@ def find_nodes(port:int, code_word:bytes, tolerance:int = 3, all:bool = False) -
                 info, addr = broadcast_socket.recvfrom(1024)
                 if info.startswith(b"pong" + code_word):
                     tolerance = 0
-                    node_port = int(info.split(b'@')[1].decode())
+                    _, node_port, visible = info.split(b'@')
+                    
+                    node_port = int(node_port.decode())
+                    visible = int(visible.decode())
+                    
                     nodes.append((addr[0], node_port))
+                    max_visible = max(max_visible, visible)
                     if not all:
                         break
         except socket.timeout:
             tolerance -= 1
     broadcast_socket.close()
-    return nodes
+    return nodes, max_visible
 
 def recieve_multipart_timeout(sock, timeout_sec):
     start = time.time()
