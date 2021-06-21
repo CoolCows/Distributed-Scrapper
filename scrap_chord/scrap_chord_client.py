@@ -204,7 +204,7 @@ class ScrapChordClient:
             known_nodes.add((idx, addr))
 
     def get_chord_nodes(self):
-        chord_nodes = find_nodes(
+        chord_nodes, _ = find_nodes(
             port=CHORD_BEACON_PORT,
             code_word=CODE_WORD_CHORD,
             tolerance=3,

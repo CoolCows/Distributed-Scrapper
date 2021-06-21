@@ -35,11 +35,9 @@ from pychord import ChordNode
 
 
 class ScrapChordNode(ChordNode):
-    def __init__(self, port, m, visible:int=2) -> None:
+    def __init__(self, port, m) -> None:
         super().__init__(m, port)
         self.online = False
-        self.visible = visible
-        # self.cache = dict()
         self.scraper_list = []
 
         self.last_pull = 0
@@ -48,16 +46,16 @@ class ScrapChordNode(ChordNode):
         self.push_scrap_pipe = zpipe(self.context)
         self.chord_scrap_pipe = zpipe(self.context)
 
-        self.com_client_last_seen = 0
-        self.com_worker_last_seen = 0
-        self.com_scraper_last_seen = 0
+        # self.com_client_last_seen = 0
+        # self.com_worker_last_seen = 0
+        # self.com_scraper_last_seen = 0
 
         logging.basicConfig(
             format="%(name)s: %(levelname)s: %(message)s", level=logging.DEBUG
         )
         self.logger = logging.getLogger("scrapkord")
 
-    def run(self, addr: str = "", mss_per_thread: int = 30):
+    def run(self, addr: str = "", visible:int=3, forever:bool = False, mss_per_thread: int = 30):
         self.online = True
         self.logger.info(
             f"ScrapKord({self.node_id}) running on {self.address[0]}:{self.address[1]}"
@@ -66,7 +64,7 @@ class ScrapChordNode(ChordNode):
         if addr != "":
             self.join(get_id(addr, self.bits), parse_address(addr))
         else:
-            net_nodes = find_nodes(
+            net_nodes, net_visible = find_nodes(
                 port=CHORD_BEACON_PORT, code_word=CODE_WORD_CHORD, tolerance=3, all=True
             )
             if len(net_nodes) > 0:
@@ -75,6 +73,8 @@ class ScrapChordNode(ChordNode):
                 succ_node = self.pop_node(0)
                 self.join(succ_node[0], succ_node[1])
                 self.logger.debug(f"Joined to {succ_node}")
+                if net_visible == 0:
+                    visible = max(3, visible)
             else:
                 self.logger.debug(f"Alone in the net")
                 self.join()
@@ -91,11 +91,11 @@ class ScrapChordNode(ChordNode):
         comm_scrap.start()
         push_pull.start()
 
-        if self.visible:
+        if visible or forever:
             self.logger.info("Network discovery is ON")
             Thread(
                 target=net_beacon,
-                args=(self.address[1], CHORD_BEACON_PORT, CODE_WORD_CHORD),
+                args=(self.address[1], CHORD_BEACON_PORT, CODE_WORD_CHORD, visible, forever),
                 daemon=True,
             ).start()
 
@@ -125,7 +125,6 @@ class ScrapChordNode(ChordNode):
             f"CliCom: Router binded to {self.address[0]}:{self.address[1] + 1}"
         )
         comm_sock = get_router(self.context)
-        # comm_sock.snd_timeo = 1000
         comm_sock.linger = 0
         comm_sock.router_mandatory = 0
         comm_sock.bind(f"tcp://{self.address[0]}:{self.address[1] + 1}")
@@ -172,10 +171,7 @@ class ScrapChordNode(ChordNode):
         if n is not None:
             return n[1]
         return self.address
-
-    def url_id(self, url):
-        return get_id(url) % (2 ** self.bits)
-
+    
     def communicate_with_scraper(self, messages_per_thread):
         self.logger.debug("CommScrap: Running")
         pending_messages = SortedSet()
@@ -335,7 +331,7 @@ class ScrapChordNode(ChordNode):
         connected = set()
 
         if random.randint(1, 5) == 1:
-            other_addrs = find_nodes(
+            other_addrs, _ = find_nodes(
                 port=SCRAP_BEACON_PORT, code_word=CODE_WORD_SCRAP, tolerance=1, all=True
             )
             self.scraper_list += [
@@ -368,9 +364,10 @@ class ScrapChordNode(ChordNode):
         scrap_addrs = self.find_scrappers_chord()
 
         if len(scrap_addrs) == 0 or more:
-            scrap_addrs += find_nodes(
+            other_scrap_addrs, _ = find_nodes(
                 port=SCRAP_BEACON_PORT, code_word=CODE_WORD_SCRAP, tolerance=3, all=True
             )
+            scrap_addrs += other_scrap_addrs
         return scrap_addrs
 
     def register_request(self, request, request_giver, request_table):

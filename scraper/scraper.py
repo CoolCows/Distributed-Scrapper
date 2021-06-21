@@ -10,10 +10,8 @@ from utils.const import CODE_WORD_SCRAP, REP_SCRAP_ACK_CONN, REP_SCRAP_ACK_NO_CO
 
 
 class Scraper:
-    def __init__(self, port, max_threads:int, visible:bool = False) -> None:
+    def __init__(self, port, max_threads:int) -> None:
         self.online = False
-        self.visible = visible
-
         self.max_threads = max_threads
         self.worker_threads = [None for _ in range(max_threads)]
         self.num_threads = 0
@@ -31,15 +29,15 @@ class Scraper:
         logging.basicConfig(format = "%(name)s: %(levelname)s: %(message)s", level=logging.INFO)
         self.logger = logging.getLogger("scraper")
 
-    def run(self):
+    def run(self, visible:int = 15, forever:bool = False):
         self.logger.info(f"Scrapper running at {self.address[0]}:{self.address[1]}")
         self.online = True
 
-        if self.visible:
-            self.logger.debug("Scraper visble")
+        if visible or forever:
+            self.logger.debug("Scraper is discoverable")
             Thread(
                 target=net_beacon,
-                args=(self.address[1], SCRAP_BEACON_PORT, CODE_WORD_SCRAP),
+                args=(self.address[1], SCRAP_BEACON_PORT, CODE_WORD_SCRAP, visible, forever),
                 daemon=True
             ).start()
 
@@ -113,7 +111,7 @@ class Scraper:
                 url = pull_sock.recv_pyobj()
             except zmq.error.Again:
                 break
-            html, urls = extract_html(url, self.logger)
+            html, urls = extract_html(url)
             
             if html == CONNECTION_TIMEOUT:
                 self.logger.info(f"Connection timeout.")
