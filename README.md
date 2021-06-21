@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 # Distributed-Scraper
-**Autores**: Rodrigo Daniel Pino Trueba, Adrian Rodriguez Portales, C-412
-=======
-# Distributed-Scrapper
 **Autores**: Rodrigo Pino, Adrián Rodríguez Portales, C-412
->>>>>>> c9881242556f4c1bd4a7b77e02b7cddfe3244651
 
 ## ScrapKord
 
@@ -45,26 +40,33 @@ El _worker_ a nivel técnico consiste en 2 socket de ZMQ, un _pull_ por donde re
 
 ### Otros
 
-Tanto los `ScrapChord` como los `Scraper` cuentan con un mecanismo de descubrimiento en la red. Se puede establecer cuando se ejecutan instancias de estas clases la cantidad de veces que pueden ser descubierto un nodo antes de ser visibles. De esta manera no siempre es necesario conocer la direccion de un nodo, se realiza un broadcast y se halla uno. En caso de que ese que encontro el uno, el uno el informe que ese es su ultimo broadcas el nodo se vuelve visible un timpo determinado. 
+Tanto los `ScrapChord` como los `Scraper` cuentan con un mecanismo de descubrimiento en la red. Se puede establecer cuando se ejecutan instancias de estas clases la cantidad de veces que pueden ser descubierto un nodo antes dejar de ser visibles. De esta manera no siempre es necesario conocer la direccion de un nodo, se realiza un broadcast y se halla uno. En caso de que ese que encontro uno, que fuera a dejar se ser visible, el propio nodo se vuelve vivible durante un tiempo. 
 
 ### Ejecución:
 #### Nodo ScrapChord:
 
 ```bash
-python run.py sc <port> <bits>
+python run.py sc <port> <bits> [<join_ip>] [<visibily_count>] [<visible_forever>]
 ```
 nota: `sc` puede ser sustituido por `chord` o `scrapchord`
 
-* `<port>` puerto principal del nodo *chord*
-* `<bits>` cantidad de *bits* con el que va a trabajar el nodo *chord* 
+* `<port>` puerto principal del nodo *chord*.
+* `<bits>` cantidad de *bits* con el que va a trabajar el nodo *chord* .
+* `[<join_ip>]` ip de otro nodo chord a unirse. En caso de este ser "", se busca en la red por otros nodos chord, y se busca unirse a estos.
+* `[<visibily_count>]` cantidad de veces que el nodo puede ser descubierto antes dejar de ser visible en la red.
+* `[<visible_forever>]` valor de verdadero o falso en caso de que se quiera que el nodo siempre sea visible mientras esté funcionando.
 
 #### Nodo Scraper
 
 ```bash
-python run.py s <port> <max_worker>
+python run.py s <port> <max_worker> [<visibily_count>] [<visible_forever>]
 ```
+nota: `s` puede ser sustituido por `scraper` o `scrapper`
+
 * `<port>` puerto principal del nodo *scraper*
-* `<max_worker>` cantidad maxima de *worker* del nodo
+* `<max_worker>` cantidad maxima de *workers* del nodo.
+* `[<visibily_count>]` cantidad de veces que el nodo puede ser descubierto antes dejar de ser visible en la red.
+* `[<visible_forever>]` valor de verdadero o falso en caso de que se quiera que el nodo siempre sea visible mientras esté funcionando.
 
 #### Nodo Cliente
 
@@ -74,7 +76,9 @@ python run.py c <port> <bits>
 * `<port>` puerto principal del nodo cliente
 * `<bits>` cantidad de *bits* con el que trabajan los nodos *chord* a los cuales se va a conectar
 
-#### Interfaz gráfica de Streamlit
+Para realizar un pedido  traves de la consola, se recibe una lista de pedidos de la forma \<url, profunidad\>. En caso de no especificarse profunidad se toma 1 por defecto. Ejemplo
+
+#### Interfaz gráfica utilizando Streamlit
 
 Si se cuenta con `streamlit` se puede ejecutar un cliente con una interfaz gráfica simple e intuitiva
 
@@ -89,6 +93,27 @@ streamlit run st_client.py
 
 ### Ejemplo
 
-Se levantaron 9 nodos en total en el inicio: 3 nodos *scrapers* (**s1**, **s2**, **s3**), 3 nodos chords (**sc1**, **sc2**, **sc3**) y 3 nodos clientes (**c1**, **c2**, **c3**). **c1** pide como *request* scrapear www.uci.cu con profundidad 3, lo cual debe tomar bastante tiempo ya que son cerca de 3000 páginas. Luego de un tiempo **c2** hace el mismo pedido. En muy poco tiempo alcanza a **c1** debido a que las primeras páginas ya están guardadas en la caché de los nodos enrutadores *chords*. **c3** hace el *request* evea.uh.cu 3. Este también tomará un tiempo, porque no se había pedido antes y también se trata de un cantidad considerable de enlaces. Luego se cierran **c2** y **c3**. Se añade **sc4** a la red. Se cierra **s1** y disminuye la potencia de cómputo del sistema. Se vuelve a levantar **s1** y al rato comienza a recibir pedidos nuevamente, ya que los nodos *chords* buscan *scrapers* a cada rato o cuando tienen mucha carga de trabajo. Se tumbam los nodos *chord* poco a poco hasta dejar **sc4**. El cliente restante se cierra. Luego de abrir un nuevo cliente y pedir  www.uci.cu 3 nuevamente los resultados empiezan a llegar inmediatemene porque ya estaban en la caché de Chord y aunque no único nodo restante en la red no era quien originalmente estaba manejando esto pedidos, las llaves fueron pasadas a este (replicación), durante el procesamiento de los pedidos por parte de los otros.
+Se levantan inicialmente 9 nodos en total:
+
+* 3 nodos *scrapers*: **s1**,  **s2**,  **s3**
+* 3 nodos chords **sc1**,  **sc2**,  **sc3**
+* 3 nodos clientes **c1**,  **c2**,  **c3**.
+
+Realizar con **c1**   *request* www.uci.cu con profundidad 3, lo cual debe tomar bastante tiempo ya que son cerca de 3000 páginas.
+
+Luego de un tiempo **c2** hace el mismo pedido. En muy poco tiempo alcanza a **c1** debido a que las primeras páginas ya están guardadas en la caché de los nodos *chords*.
+
+ **c3** hace un *request* evea.uh.cu 3. Este también tomará un tiempo, porque no se había pedido antes y también se trata de un cantidad considerable de enlaces.
+
+Luego se cierran **c2** y **c3**.
+
+Se añade **sc4** a la red.
+
+Se cierra **s1** y disminuye la potencia de cómputo del sistema.
+
+Se vuelve a levantar **s1** y al rato comienza a recibir pedidos nuevamente, ya que los nodos *chords* buscan *scrapers* a cada rato o cuando tienen mucha carga de trabajo.
+
+Se cierran los nodos *chord* en intervalos de tiempo de entre 5 o 10 segundos. hasta dejar **sc4**. El cliente restante se cierra. Luego de abrir un nuevo cliente y pedir  www.uci.cu 3 nuevamente los resultados (o la gran mayoría de estos) empiezan a llegar inmediatemene porque ya estaban en la caché de Chord y aunque el único nodo restante en la red no era quien originalmente estaba manejando esto pedidos, las llaves fueron pasadas a este (replicación), durante el procesamiento de los pedidos por parte de los otros.
+
 
 
