@@ -231,7 +231,7 @@ class ScrapChordNode(ChordNode):
                 if self.connect_to_scraper(last_connected):
                     scrap_conns = 1
                     self.logger.debug(f"ScrapCom: Resending old mesages")
-                    for pend_mss in [pend for pend in pending_messages if self.storage.has_key(pend)]:
+                    for pend_mss in [pend for pend in pending_messages if self.storage.has_key(pend) or self.url_succesor(pend) != self.address]:
                         pending_messages.remove(pend_mss)
                     for url in pending_messages:
                         self.push_scrap_pipe[1].send_pyobj(url)
