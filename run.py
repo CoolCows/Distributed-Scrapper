@@ -7,7 +7,7 @@ def main(node_type, args):
     if node_type in {"chord", "scrapchord", "sc"}:
         port = int(args[0])
         m = int(args[1])
-        join_ip = args[2] if len(args) > 3 else 0
+        join_ip = args[2] if len(args) > 3 else ""
         visible = int(args[3]) if len(args) > 4 else 8
         forever = False if len(args) > 5 and args[4] == 'f' else True
         sc = ScrapChordNode(port, m)
