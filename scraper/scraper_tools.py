@@ -6,12 +6,12 @@ from requests.exceptions import ConnectTimeout, RequestException, MissingSchema,
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse 
 
-def extract_html(url, logger):
+def extract_html(url):
     try:
         reqs = requests.get(url, timeout=(3, 3))
     except (RequestException, ValueError, ConnectTimeout) as exception:
         if isinstance(exception, MissingSchema):
-            return extract_html("http://" + url, logger)
+            return extract_html("http://" + url)
         if isinstance(exception, (ConnectTimeout, ReadTimeout)):
             return CONNECTION_TIMEOUT, set()
         if isinstance(exception, ConnectionError):
@@ -26,7 +26,6 @@ def extract_html(url, logger):
         l = link.get("href")
         if has_header(l):
             if get_header(l) != domain:
-                # logger.debug(f"{l} is outside the domain {domain}")
                 continue
         else:
             l = url + l
