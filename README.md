@@ -58,4 +58,8 @@ Si se cuenta con `streamlit` se puede ejecutar un cliente con una interfaz gráf
 ```bash
 streamlit run st_client.py 
 ```
+![st_client](img/st_client.png)
+
+
+### Ejemplo
 
