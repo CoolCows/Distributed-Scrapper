@@ -35,7 +35,6 @@ if __name__ == "__main__":
 
     urls_req = st.text_input("Enter urls for scraping")
     start = st.button("Start")
-    done = False
     if start:
         t, chord_sock = create_chord_client(int(port), int(bits))
         done = False
