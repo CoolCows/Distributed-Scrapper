@@ -1,6 +1,6 @@
+import os, shutil
 from typing import List
 from utils.tools import get_id
-
 from utils.search_tree import SearchTree
 
 
@@ -80,6 +80,39 @@ def update_search_trees(search_trees:List[SearchTree], url:str, url_set:set) -> 
     completed = [search_trees.pop(i) for i in remove]
     return pending, completed
 
-# a = {"a": 1}
-# print(len(a))
-# del a["a"]
+def save_files(url_html:dict, max_saves:int, index:int):
+    if not os.path.exists("./scrap_saves"):
+        os.makedirs("./scrap_saves")
+
+    not_used = -1
+    for i in range(max_saves):
+        if not os.path.exists(f"./scrap_saves/scrap_saves({i})"):
+            not_used = i
+            break
+    else:
+        not_used = index
+        print(f"Deleting folder")
+        shutil.rmtree(f"./scrap_saves/scrap_saves({not_used})")
+    
+    pathx = f"./scrap_saves/scrap_saves({not_used})"
+
+    print(f"Saving on {pathx}")
+    os.makedirs(pathx)
+    for url in url_html:
+        html = url_html[url]
+        url = transform_url(url)
+        print(f"url_name: {url}")
+        with open(pathx + "/" + f"{url}.txt", "w") as f:
+            f.write(html)
+            f.close()
+    
+    return pathx[2:]
+
+def transform_url(url):
+    new_url = ""
+    for char in url:
+        if char == "/":
+            char = "\\"
+        new_url += char
+    return new_url
+    
